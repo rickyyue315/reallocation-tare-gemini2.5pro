@@ -1,89 +1,80 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from datetime import datetime
-import io
-import os
+from io import BytesIO
 from utils import preprocess_data, generate_recommendations
 
-# 主應用程式
-def main():
-    st.title("優化後的調貨建議生成器")
+st.set_page_config(layout="wide")
 
-    # 添加一個選項來使用預設文件路徑
-    use_default_file = st.checkbox("使用預設文件路徑進行調試")
+st.title("貨品調貨建議系統")
 
-    uploaded_file = None
-    if use_default_file:
-        default_file_path = r"C:\Users\BestO\Dropbox\SASA\ELE_08Sep2025.XLSX"
-        if os.path.exists(default_file_path):
-            uploaded_file = default_file_path
-            st.info(f"正在使用預設文件: {default_file_path}")
-        else:
-            st.error(f"預設文件不存在: {default_file_path}")
-            return
-    else:
-        uploaded_file = st.file_uploader("上傳 Excel 文件 (.xlsx)", type="xlsx")
+st.info("請上傳 Excel 文件以開始。")
 
-    if uploaded_file is not None:
-        try:
-            df = pd.read_excel(uploaded_file)
-            st.success("文件上傳成功！")
+# 文件上傳
+uploaded_file = st.file_uploader("上傳 Excel 文件", type=["xlsx", "xls"])
 
-            # 進行數據預處理
-            processed_df, logs = preprocess_data(df.copy())
+if uploaded_file is not None:
+    try:
+        df = pd.read_excel(uploaded_file, engine='openpyxl' if uploaded_file.name.endswith('xlsx') else 'xlrd')
+        st.success("文件上傳成功！")
 
-            if processed_df is not None:
-                # 顯示數據預覽
-                st.subheader("數據預覽 (前 5 行)")
-                st.dataframe(processed_df.head())
+        # 顯示原始數據預覽
+        with st.expander("顯示原始數據預覽"):
+            st.dataframe(df.head(100))
 
-                # 顯示統計信息
-                st.subheader("數據統計")
-                st.write(f"總行數: {len(processed_df)}")
-                st.write(f"缺失值數量: {processed_df.isnull().sum().sum()}")
+        # 數據預處理
+        processed_df, logs = preprocess_data(df.copy())
 
-                # 顯示預處理日誌
-                if logs:
-                    st.subheader("數據處理日誌")
-                    for log in logs:
+        # 顯示預處理日誌
+        if logs:
+            with st.expander("查看數據預處理日誌"):
+                for log in logs:
+                    if "錯誤" in log:
+                        st.error(log)
+                    elif "警告" in log:
                         st.warning(log)
+                    else:
+                        st.info(log)
 
-                if st.button("生成調貨建議"):
-                    with st.spinner("正在生成建議，請稍候..."):
-                        recommendations, summary_kpis, summary_details = generate_recommendations(processed_df)
+        if processed_df is not None:
+            # 生成調貨建議
+            if st.button("生成調貨建議"):
+                with st.spinner("正在分析數據並生成建議..."):
+                    recommendations_df, summary_kpis, summary_details = generate_recommendations(processed_df.copy())
 
+                if not recommendations_df.empty:
                     st.subheader("調貨建議")
-                    st.dataframe(recommendations)
-
-                    # 準備下載文件
-                    output = io.BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        recommendations.to_excel(writer, index=False, sheet_name='調貨建議')
-                        # 將 KPI 和詳細統計信息寫入同一工作表
-                        summary_df = pd.concat([pd.DataFrame([summary_kpis]), pd.DataFrame(), summary_details['by_article'], pd.DataFrame(), summary_details['by_om'], pd.DataFrame(), summary_details['by_transfer_type'], pd.DataFrame(), summary_details['by_receive_priority']], ignore_index=True)
-                        summary_df.to_excel(writer, index=False, sheet_name='統計摘要')
-
-                    file_name = f"調貨建議_{datetime.now().strftime('%Y%m%d')}.xlsx"
-                    st.download_button(
-                        label="下載調貨建議 Excel 文件",
-                        data=output.getvalue(),
-                        file_name=file_name,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
+                    st.dataframe(recommendations_df)
 
                     st.subheader("統計摘要")
-                    st.write("**關鍵績效指標 (KPI)**")
-                    st.json(summary_kpis)
-                    st.write("**詳細統計**")
-                    for key, df_summary in summary_details.items():
-                        st.write(f"**{key}**")
-                        st.dataframe(df_summary)
+                    # KPI 指標
+                    cols = st.columns(len(summary_kpis))
+                    for i, (k, v) in enumerate(summary_kpis.items()):
+                        cols[i].metric(k, v)
 
-        except Exception as e:
-            st.error(f"處理文件時發生錯誤: {e}")
-    else:
-        st.info("請上傳一個 .xlsx 文件。")
+                    # 詳細統計
+                    with st.expander("查看詳細統計數據"):
+                        for name, detail_df in summary_details.items():
+                            st.write(f"**按 {name.replace('_', ' ')} 統計**")
+                            st.dataframe(detail_df)
 
-if __name__ == "__main__":
-    main()
+                    # 下載功能
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                        recommendations_df.to_excel(writer, sheet_name='調貨建議', index=False)
+                        # 將統計摘要寫入同一個 Excel 文件的不同工作表
+                        summary_df = pd.DataFrame([summary_kpis])
+                        summary_df.to_excel(writer, sheet_name='統計摘要', index=False)
+                        for name, detail_df in summary_details.items():
+                            detail_df.to_excel(writer, sheet_name=f'按{name}統計', index=False)
+
+                    st.download_button(
+                        label="下載調貨建議 (Excel)",
+                        data=output.getvalue(),
+                        file_name="reallocation_recommendations.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                else:
+                    st.info("根據當前規則，沒有生成任何調貨建議。")
+
+    except Exception as e:
+        st.error(f"處理文件時發生錯誤: {e}")
