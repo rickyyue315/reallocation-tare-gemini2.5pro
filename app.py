@@ -14,7 +14,9 @@ uploaded_file = st.file_uploader("上傳 Excel 文件", type=["xlsx", "xls"])
 
 if uploaded_file is not None:
     try:
-        df = pd.read_excel(uploaded_file, engine='openpyxl' if uploaded_file.name.endswith('xlsx') else 'xlrd')
+        # 修正：將檔名轉為小寫以正確判斷引擎
+        engine = 'openpyxl' if uploaded_file.name.lower().endswith('xlsx') else 'xlrd'
+        df = pd.read_excel(uploaded_file, engine=engine)
         st.success("文件上傳成功！")
 
         # 顯示原始數據預覽
