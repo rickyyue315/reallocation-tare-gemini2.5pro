@@ -19,15 +19,16 @@ st.set_page_config(
 # 2. 側邊欄設計
 with st.sidebar:
     st.header("系統資訊")
-    st.info("""
-    **版本：v1.6**
-
-    **核心功能：**
-    - ✅ ND/RF類型智慧識別
-    - ✅ 優先順序調貨匹配
-    - ✅ RF過剩轉出限制
-    - ✅ 統計分析和圖表
-    - ✅ Excel格式匯出
+    st.info(""" 
+    **版本：v1.7** 
+    **開發者:Ricky** 
+    
+    **核心功能：**  
+    - ✅ ND/RF類型智慧識別 
+    - ✅ 優先順序調貨匹配 
+    - ✅ RF過剩轉出限制 
+    - ✅ 統計分析和圖表 
+    - ✅ Excel格式匯出 
     """)
     st.sidebar.header("操作指引")
     st.sidebar.markdown("""
@@ -89,8 +90,18 @@ if uploaded_file is not None:
                         st.info(log)
         
         if processed_df is not None:
+            st.session_state.cleaned_df = processed_df
+
             # 4.3. 分析按鈕區塊
             st.header("2. 分析與建議")
+
+            transfer_mode = st.radio(
+                "請選擇調貨模式：",
+                ('A: 保守轉貨', 'B: 加強轉貨'),
+                key='transfer_mode',
+                help="A模式優先保障安全庫存，B模式則更積極地處理滯銷品。"
+            )
+
             if st.button("🚀 啟動分析生成調貨建議", type="primary"):
                 progress_bar.progress(70, text="正在分析數據並生成建議...")
                 with st.spinner("演算法運行中，請稍候..."):
@@ -101,7 +112,7 @@ if uploaded_file is not None:
                         stats_by_om, 
                         transfer_type_dist, 
                         receive_type_dist
-                    ) = generate_recommendations(processed_df.copy())
+                    ) = generate_recommendations(st.session_state.cleaned_df.copy(), st.session_state.transfer_mode)
                     time.sleep(1) # 模擬耗時操作
                 progress_bar.progress(90, text="分析完成！正在準備結果展示...")
 
@@ -126,34 +137,27 @@ if uploaded_file is not None:
                     st.markdown("---")
 
                     # 統計圖表
-                    st.subheader("Statistical Analysis")
-                    st.write("Here are some key statistics based on the recommendations:")
+                    st.subheader("詳細統計分析 (Detailed Statistical Analysis)")
+                    
+                    col1, col2 = st.columns(2)
 
-                    col1, col2, col3, col4 = st.columns(4)
                     with col1:
-                        st.metric(label="Total Recommendations", value=kpi_metrics.get("總調貨建議數量", 0))
+                        st.write("#### 按產品統計 (Statistics by Article)")
+                        st.dataframe(stats_by_article)
+                        st.write("#### 轉出類型分佈 (Transfer Type Distribution)")
+                        st.dataframe(transfer_type_dist)
+
                     with col2:
-                        st.metric(label="Total Transfer Quantity", value=kpi_metrics.get("總調貨件數", 0))
-                    with col3:
-                        st.metric(label="Unique Articles Involved", value=kpi_metrics.get("涉及產品數量", 0))
-                    with col4:
-                        st.metric(label="Unique OMs Involved", value=kpi_metrics.get("涉及OM數量", 0))
-
-                    st.write("### Statistics by Article")
-                    st.dataframe(stats_by_article)
-
-                    st.write("### Statistics by OM")
-                    st.dataframe(stats_by_om)
-
-                    st.write("### Transfer Type Distribution")
-                    st.dataframe(transfer_type_dist)
-
-                    st.write("### Receive Type Distribution")
-                    st.dataframe(receive_type_dist)
+                        st.write("#### 按OM統計 (Statistics by OM)")
+                        st.dataframe(stats_by_om)
+                        st.write("#### 接收類型分佈 (Receive Type Distribution)")
+                        st.dataframe(receive_type_dist)
+                    
+                    st.markdown("---")
 
                     # Display the OM Transfer vs Receive Analysis Chart
-                    st.write("### OM Transfer vs Receive Analysis Chart")
-                    om_chart_fig = create_om_transfer_chart(recommendations_df)
+                    st.subheader("OM 調貨分析圖表 (OM Transfer vs Receive Analysis Chart)")
+                    om_chart_fig = create_om_transfer_chart(recommendations_df, st.session_state.transfer_mode)
                     st.pyplot(om_chart_fig)
 
                     st.success("Analysis complete! You can now download the recommendations.")

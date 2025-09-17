@@ -20,7 +20,7 @@ def preprocess_data(df):
     """
     logs = []
     required_cols = [
-        'Article', 'Article Description', 'RP Type', 'Site', 'OM', 
+        'Article', 'Article Description', 'RP Type', 'Site', 'OM', 'MOQ',
         'SaSa Net Stock', 'Pending Received', 'Safety Stock', 
         'Last Month Sold Qty', 'MTD Sold Qty'
     ]
@@ -42,7 +42,7 @@ def preprocess_data(df):
 
     # 2. 數量欄位處理
     quantity_cols = [
-        'SaSa Net Stock', 'Pending Received', 'Safety Stock', 
+        'MOQ', 'SaSa Net Stock', 'Pending Received', 'Safety Stock', 
         'Last Month Sold Qty', 'MTD Sold Qty'
     ]
     for col in quantity_cols:
@@ -93,7 +93,7 @@ def preprocess_data(df):
 
     return df, logs
 
-def generate_recommendations(df):
+def generate_recommendations(df, transfer_mode="A: 保守轉貨"):
     """
     實現調貨建議的核心演算法。
     """
@@ -112,38 +112,58 @@ def generate_recommendations(df):
         senders = []
         receivers = []
 
+        # 根據模式決定排序方式
+        sorted_group = group
+        if transfer_mode == 'B: 加強轉貨':
+            sorted_group = group.sort_values(by=['Last Month Sold Qty', 'MTD Sold Qty'], ascending=True)
+
         # 識別轉出和接收候選
-        for _, row in group.iterrows():
+        for _, row in sorted_group.iterrows():
             stock = row['SaSa Net Stock']
             pending = row['Pending Received']
             safety_stock = row['Safety Stock']
             effective_sales = row['Effective Sold Qty']
+            moq = row['MOQ']
             
             # --- 轉出候選識別規則 ---
-            # 優先順序1 - ND類型完全轉出
+            # 優先順序1 - ND類型完全轉出 (對兩種模式都適用)
             if row['RP Type'] == 'ND' and stock > 0:
                 senders.append({
                     'type': 'ND轉出', 'priority': 1, 'data': row, 
                     'available_qty': stock
                 })
-            # 優先順序2 - RF類型過剩轉出
-            elif row['RP Type'] == 'RF' and (stock + pending) > safety_stock and effective_sales < max_sales_in_group:
-                base_transferable = (stock + pending) - safety_stock
-                upper_limit = (stock + pending) * 0.2
-                
-                # 上限控制，但最少2件
-                actual_transfer = min(base_transferable, max(upper_limit, 2))
-                
-                # 不能超過實際庫存
-                actual_transfer = min(actual_transfer, stock)
-                
-                if actual_transfer > 0:
-                    senders.append({
-                        'type': 'RF過剩轉出', 'priority': 2, 'data': row,
-                        'available_qty': int(np.floor(actual_transfer))
-                    })
+            
+            # 模式A: 保守轉貨
+            if transfer_mode == 'A: 保守轉貨':
+                # 優先順序2 - RF類型過剩轉出
+                if row['RP Type'] == 'RF' and (stock + pending) > safety_stock and effective_sales < max_sales_in_group:
+                    base_transferable = (stock + pending) - safety_stock
+                    upper_limit = (stock + pending) * 0.2
+                    actual_transfer = min(base_transferable, max(upper_limit, 2))
+                    actual_transfer = min(actual_transfer, stock)
+                    
+                    if actual_transfer > 0:
+                        senders.append({
+                            'type': 'RF過剩轉出', 'priority': 2, 'data': row,
+                            'available_qty': int(np.floor(actual_transfer))
+                        })
+            
+            # 模式B: 加強轉貨
+            elif transfer_mode == 'B: 加強轉貨':
+                # 優先順序2 - RF類型加強轉出
+                if row['RP Type'] == 'RF' and (stock + pending) > (moq + 1) and effective_sales < max_sales_in_group:
+                    base_transferable = (stock + pending) - (moq + 1)
+                    upper_limit = (stock + pending) * 0.5
+                    actual_transfer = min(base_transferable, max(upper_limit, 2))
+                    actual_transfer = min(actual_transfer, stock)
 
-            # --- 接收候選識別規則 ---
+                    if actual_transfer > 0:
+                        senders.append({
+                            'type': 'RF加強轉出', 'priority': 2, 'data': row,
+                            'available_qty': int(np.floor(actual_transfer))
+                        })
+
+            # --- 接收候選識別規則 (對兩種模式都適用) ---
             # 優先順序1 - 緊急缺貨補貨
             if row['RP Type'] == 'RF' and stock == 0 and effective_sales > 0:
                 receivers.append({
@@ -190,6 +210,7 @@ def generate_recommendations(df):
                                 'Original Stock': sender['data']['SaSa Net Stock'],
                                 'After Transfer Stock': sender['data']['SaSa Net Stock'] - final_transfer_qty,
                                 'Safety Stock': sender['data']['Safety Stock'],
+                                'MOQ': sender['data']['MOQ'],
                                 'Notes': f"{sender['type']} -> {receiver['type']}",
                                 '_sender_type': sender['type'],
                                 '_receiver_type': receiver['type']
@@ -241,13 +262,10 @@ def generate_recommendations(df):
     
     return rec_df, kpi_metrics, stats_by_article, stats_by_om, transfer_type_dist, receive_type_dist
 
-def create_om_transfer_chart(recommendations_df):
+def create_om_transfer_chart(recommendations_df, transfer_mode="A: 保守轉貨"):
     """
     創建 matplotlib 橫條圖進行數據視覺化。
-    - 標題：OM Transfer vs Receive Analysis
-    - 橫軸：OM單位清單
-    - 縱軸：調貨數量
-    - 四條形設計：ND轉出數量 vs RF過剩轉出數量 vs 緊急缺貨接收數量 vs 潛在缺貨接收數量
+    - 根據選擇的 transfer_mode 動態更新圖表
     """
     if recommendations_df.empty:
         return plt.figure()
@@ -257,14 +275,23 @@ def create_om_transfer_chart(recommendations_df):
 
     # 分類數據
     nd_transfer = df[df['_sender_type'] == 'ND轉出'].groupby('OM')['Transfer Qty'].sum()
-    rf_transfer = df[df['_sender_type'] == 'RF過剩轉出'].groupby('OM')['Transfer Qty'].sum()
+    
+    # 根據模式確定 RF 轉出類型和圖例標籤
+    if transfer_mode == 'B: 加強轉貨':
+        rf_transfer_type = 'RF加強轉出'
+        rf_legend_label = 'RF Enhanced Transfer Out'
+    else:
+        rf_transfer_type = 'RF過剩轉出'
+        rf_legend_label = 'RF Surplus Transfer Out'
+        
+    rf_transfer = df[df['_sender_type'] == rf_transfer_type].groupby('OM')['Transfer Qty'].sum()
     urgent_receive = df[df['_receiver_type'] == '緊急缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
     potential_receive = df[df['_receiver_type'] == '潛在缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
 
     # 合併成一個DataFrame
     chart_data = pd.DataFrame({
         'ND Transfer Out': nd_transfer,
-        'RF Surplus Transfer Out': rf_transfer,
+        rf_legend_label: rf_transfer,
         'Urgent Shortage Receive': urgent_receive,
         'Potential Shortage Receive': potential_receive
     }).fillna(0)
@@ -310,33 +337,46 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
         export_rec_df = rec_df[[
             'Article', 'Product Desc', 'OM', 'Transfer Site', 'Receive Site', 
             'Transfer Qty', 'Original Stock', 'After Transfer Stock', 
-            'Safety Stock', 'Notes'
+            'Safety Stock', 'MOQ', 'Notes'
         ]]
-        export_rec_df.to_excel(writer, sheet_name='調貨建議', index=False)
+        export_rec_df.to_excel(writer, sheet_name='Recommendations', index=False)
 
         # 工作表2 - 統計摘要
+        summary_sheet_name = 'Statistics Summary'
         start_row = 0
 
         # Helper function to write a dataframe with title
         def write_df_with_title(df, title, row):
-            pd.DataFrame([title]).to_excel(writer, sheet_name='統計摘要', startrow=row, index=False, header=False)
-            df.to_excel(writer, sheet_name='統計摘要', startrow=row + 2, index=False)
+            pd.DataFrame([title]).to_excel(writer, sheet_name=summary_sheet_name, startrow=row, index=False, header=False)
+            df.to_excel(writer, sheet_name=summary_sheet_name, startrow=row + 2, index=False)
             return row + len(df) + 5 # 2 for title, df_len, 3 for spacing
 
         # KPI概覽
-        kpi_df = pd.DataFrame([kpis])
-        start_row = write_df_with_title(kpi_df, "KPI 概覽", start_row)
+        kpi_summary = {
+            "Total Recommendations": kpis.get("總調貨建議數量", 0),
+            "Total Transfer Qty": kpis.get("總調貨件數", 0)
+        }
+        kpi_df = pd.DataFrame([kpi_summary])
+        start_row = write_df_with_title(kpi_df, "KPI Overview", start_row)
         
         # 按Article統計
-        start_row = write_df_with_title(stats_article, "按 Article 統計", start_row)
+        stats_article_en = stats_article.copy()
+        stats_article_en.columns = ["Article", "Total Transfer Qty", "Num Recommendations", "Num OMs"]
+        start_row = write_df_with_title(stats_article_en, "Statistics by Article", start_row)
         
         # 按OM統計
-        start_row = write_df_with_title(stats_om, "按 OM 統計", start_row)
+        stats_om_en = stats_om.copy()
+        stats_om_en.columns = ["OM", "Total Transfer Qty", "Num Recommendations", "Num Articles"]
+        start_row = write_df_with_title(stats_om_en, "Statistics by OM", start_row)
         
         # 轉出類型分佈
-        start_row = write_df_with_title(transfer_dist, "轉出類型分佈", start_row)
+        transfer_dist_en = transfer_dist.copy()
+        transfer_dist_en.columns = ["Sender Type", "Total Qty", "Num Recommendations"]
+        start_row = write_df_with_title(transfer_dist_en, "Transfer Out Distribution", start_row)
         
         # 接收類型分佈
-        write_df_with_title(receive_dist, "接收類型分佈", start_row)
+        receive_dist_en = receive_dist.copy()
+        receive_dist_en.columns = ["Receiver Type", "Total Qty", "Num Recommendations"]
+        write_df_with_title(receive_dist_en, "Receive In Distribution", start_row)
 
     return output.getvalue()
