@@ -153,7 +153,7 @@ if uploaded_file is not None:
 
                     # Display the OM Transfer vs Receive Analysis Chart
                     st.write("### OM Transfer vs Receive Analysis Chart")
-                    om_chart_fig = create_om_transfer_chart(rec_df)
+                    om_chart_fig = create_om_transfer_chart(recommendations_df)
                     st.pyplot(om_chart_fig)
 
                     st.success("Analysis complete! You can now download the recommendations.")
