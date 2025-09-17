@@ -158,6 +158,15 @@ if uploaded_file is not None:
 
                     st.success("Analysis complete! You can now download the recommendations.")
 
+                    excel_data = generate_excel_export(
+                        recommendations_df,
+                        kpi_metrics,
+                        stats_by_article,
+                        stats_by_om,
+                        transfer_type_dist,
+                        receive_type_dist
+                    )
+
                     st.download_button(
                         label="📥 下載調貨建議 (Excel)",
                         data=excel_data,
