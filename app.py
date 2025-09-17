@@ -126,34 +126,38 @@ if uploaded_file is not None:
                     st.markdown("---")
 
                     # 統計圖表
-                    st.subheader("統計分析圖表")
-                    fig = create_om_transfer_chart(recommendations_df)
-                    st.pyplot(fig)
+                    st.subheader("Statistical Analysis")
+                    st.write("Here are some key statistics based on the recommendations:")
 
-                    # 詳細統計數據
-                    with st.expander("查看詳細統計數據"):
-                        st.write("**按產品統計**")
-                        st.dataframe(stats_by_article)
-                        st.write("**按OM統計**")
-                        st.dataframe(stats_by_om)
-                        st.write("**轉出類型分佈**")
-                        st.dataframe(transfer_type_dist)
-                        st.write("**接收類型分佈**")
-                        st.dataframe(receive_type_dist)
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        st.metric(label="Total Recommendations", value=kpi_metrics.get("總調貨建議數量", 0))
+                    with col2:
+                        st.metric(label="Total Transfer Quantity", value=kpi_metrics.get("總調貨件數", 0))
+                    with col3:
+                        st.metric(label="Unique Articles Involved", value=kpi_metrics.get("涉及產品數量", 0))
+                    with col4:
+                        st.metric(label="Unique OMs Involved", value=kpi_metrics.get("涉及OM數量", 0))
 
-                    # 4.5. 匯出區塊
-                    st.header("4. 匯出結果")
-                    st.info("您可以將生成的調貨建議和詳細統計數據匯出為 Excel 文件。")
-                    
-                    excel_data = generate_excel_export(
-                        recommendations_df,
-                        kpi_metrics,
-                        stats_by_article,
-                        stats_by_om,
-                        transfer_type_dist,
-                        receive_type_dist
-                    )
-                    
+                    st.write("### Statistics by Article")
+                    st.dataframe(stats_by_article)
+
+                    st.write("### Statistics by OM")
+                    st.dataframe(stats_by_om)
+
+                    st.write("### Transfer Type Distribution")
+                    st.dataframe(transfer_type_dist)
+
+                    st.write("### Receive Type Distribution")
+                    st.dataframe(receive_type_dist)
+
+                    # Display the OM Transfer vs Receive Analysis Chart
+                    st.write("### OM Transfer vs Receive Analysis Chart")
+                    om_chart_fig = create_om_transfer_chart(rec_df)
+                    st.pyplot(om_chart_fig)
+
+                    st.success("Analysis complete! You can now download the recommendations.")
+
                     st.download_button(
                         label="📥 下載調貨建議 (Excel)",
                         data=excel_data,

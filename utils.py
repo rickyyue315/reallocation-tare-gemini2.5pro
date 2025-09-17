@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # 設置 matplotlib 支持中文
-plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] 
-plt.rcParams['axes.unicode_minus'] = False
+# plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] 
+# plt.rcParams['axes.unicode_minus'] = False
 
 def preprocess_data(df):
     """
@@ -238,35 +238,52 @@ def generate_recommendations(df):
         涉及行數=('_receiver_type', 'count')
     ).reset_index().round(2)
     
-    # 移除臨時列
-    rec_df_final = rec_df.drop(columns=['_sender_type', '_receiver_type'])
-
-    return rec_df_final, kpi_metrics, stats_by_article, stats_by_om, transfer_type_dist, receive_type_dist
+    return rec_df, kpi_metrics, stats_by_article, stats_by_om, transfer_type_dist, receive_type_dist
 
 def create_om_transfer_chart(recommendations_df):
     """
     創建 matplotlib 橫條圖進行數據視覺化。
+    - 標題：OM Transfer vs Receive Analysis
+    - 橫軸：OM單位清單
+    - 縱軸：調貨數量
+    - 雙條形設計：ND/RF過剩轉出數量 vs 緊急/潛在缺貨接收數量
     """
     if recommendations_df.empty:
         return plt.figure()
 
-    # 按OM統計轉出和接收數量
-    transfer_out = recommendations_df.groupby('OM')['Transfer Qty'].sum()
+    # 數據準備
+    df = recommendations_df.copy()
     
-    # 接收數量與轉出數量相同，只是視角不同
-    transfer_in = recommendations_df.groupby('OM')['Transfer Qty'].sum()
+    # 轉出數據
+    transfer_out_df = df[df['_sender_type'].isin(['ND轉出', 'RF過剩轉出'])]
+    transfer_out_summary = transfer_out_df.groupby('OM')['Transfer Qty'].sum().reset_index()
+    transfer_out_summary.rename(columns={'Transfer Qty': 'Transfer Out Qty'}, inplace=True)
 
-    chart_data = pd.DataFrame({'轉出數量': transfer_out, '接收數量': transfer_in}).fillna(0)
+    # 接收數據
+    receive_in_df = df[df['_receiver_type'].isin(['緊急缺貨補貨', '潛在缺貨補貨'])]
+    receive_in_summary = receive_in_df.groupby('OM')['Transfer Qty'].sum().reset_index()
+    receive_in_summary.rename(columns={'Transfer Qty': 'Receive In Qty'}, inplace=True)
+
+    # 合併數據
+    chart_data = pd.merge(transfer_out_summary, receive_in_summary, on='OM', how='outer').fillna(0)
     
-    fig, ax = plt.subplots(figsize=(12, 8))
-    chart_data.plot(kind='bar', ax=ax)
+    # 繪圖
+    fig, ax = plt.subplots(figsize=(14, 8))
     
+    bar_width = 0.35
+    index = np.arange(len(chart_data['OM']))
+
+    bar1 = ax.bar(index - bar_width/2, chart_data['Transfer Out Qty'], bar_width, label='ND/RF Surplus Transfer')
+    bar2 = ax.bar(index + bar_width/2, chart_data['Receive In Qty'], bar_width, label='Urgent/Potential Shortage Receive')
+
     ax.set_title('OM Transfer vs Receive Analysis', fontsize=16)
-    ax.set_xlabel('OM 單位', fontsize=12)
-    ax.set_ylabel('調貨數量', fontsize=12)
-    ax.tick_params(axis='x', rotation=45)
+    ax.set_xlabel('OM Unit', fontsize=12)
+    ax.set_ylabel('Transfer Quantity', fontsize=12)
+    ax.set_xticks(index)
+    ax.set_xticklabels(chart_data['OM'], rotation=45, ha="right")
+    ax.legend()
     ax.grid(axis='y', linestyle='--', alpha=0.7)
-    
+
     plt.tight_layout()
     return fig
 
@@ -286,7 +303,6 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
         export_rec_df.to_excel(writer, sheet_name='調貨建議', index=False)
 
         # 工作表2 - 統計摘要
-        summary_sheet = writer.sheets['統計摘要']
         start_row = 0
 
         # Helper function to write a dataframe with title
