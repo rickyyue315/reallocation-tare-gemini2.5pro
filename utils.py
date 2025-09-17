@@ -246,42 +246,39 @@ def create_om_transfer_chart(recommendations_df):
     - 標題：OM Transfer vs Receive Analysis
     - 橫軸：OM單位清單
     - 縱軸：調貨數量
-    - 雙條形設計：ND/RF過剩轉出數量 vs 緊急/潛在缺貨接收數量
+    - 四條形設計：ND轉出數量 vs RF過剩轉出數量 vs 緊急缺貨接收數量 vs 潛在缺貨接收數量
     """
     if recommendations_df.empty:
         return plt.figure()
 
     # 數據準備
     df = recommendations_df.copy()
-    
-    # 轉出數據
-    transfer_out_df = df[df['_sender_type'].isin(['ND轉出', 'RF過剩轉出'])]
-    transfer_out_summary = transfer_out_df.groupby('OM')['Transfer Qty'].sum().reset_index()
-    transfer_out_summary.rename(columns={'Transfer Qty': 'Transfer Out Qty'}, inplace=True)
 
-    # 接收數據
-    receive_in_df = df[df['_receiver_type'].isin(['緊急缺貨補貨', '潛在缺貨補貨'])]
-    receive_in_summary = receive_in_df.groupby('OM')['Transfer Qty'].sum().reset_index()
-    receive_in_summary.rename(columns={'Transfer Qty': 'Receive In Qty'}, inplace=True)
+    # 分類數據
+    nd_transfer = df[df['_sender_type'] == 'ND轉出'].groupby('OM')['Transfer Qty'].sum()
+    rf_transfer = df[df['_sender_type'] == 'RF過剩轉出'].groupby('OM')['Transfer Qty'].sum()
+    urgent_receive = df[df['_receiver_type'] == '緊急缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
+    potential_receive = df[df['_receiver_type'] == '潛在缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
 
-    # 合併數據
-    chart_data = pd.merge(transfer_out_summary, receive_in_summary, on='OM', how='outer').fillna(0)
-    
+    # 合併成一個DataFrame
+    chart_data = pd.DataFrame({
+        'ND Transfer Out': nd_transfer,
+        'RF Surplus Transfer Out': rf_transfer,
+        'Urgent Shortage Receive': urgent_receive,
+        'Potential Shortage Receive': potential_receive
+    }).fillna(0)
+
     # 繪圖
-    fig, ax = plt.subplots(figsize=(14, 8))
+    fig, ax = plt.subplots(figsize=(18, 10))
     
-    bar_width = 0.35
-    index = np.arange(len(chart_data['OM']))
+    chart_data.plot(kind='bar', ax=ax, width=0.8)
 
-    bar1 = ax.bar(index - bar_width/2, chart_data['Transfer Out Qty'], bar_width, label='ND/RF Surplus Transfer')
-    bar2 = ax.bar(index + bar_width/2, chart_data['Receive In Qty'], bar_width, label='Urgent/Potential Shortage Receive')
-
-    ax.set_title('OM Transfer vs Receive Analysis', fontsize=16)
-    ax.set_xlabel('OM Unit', fontsize=12)
-    ax.set_ylabel('Transfer Quantity', fontsize=12)
-    ax.set_xticks(index)
-    ax.set_xticklabels(chart_data['OM'], rotation=45, ha="right")
-    ax.legend()
+    ax.set_title('OM Transfer vs Receive Analysis', fontsize=18, weight='bold')
+    ax.set_xlabel('OM Unit', fontsize=14)
+    ax.set_ylabel('Transfer Quantity', fontsize=14)
+    ax.tick_params(axis='x', rotation=45, labelsize=12)
+    ax.tick_params(axis='y', labelsize=12)
+    ax.legend(title='Transfer/Receive Type', fontsize=12)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
 
     plt.tight_layout()
