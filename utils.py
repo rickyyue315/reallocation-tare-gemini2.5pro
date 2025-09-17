@@ -4,6 +4,7 @@ import streamlit as st
 from io import BytesIO
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.ticker import MaxNLocator
 
 # 設置 matplotlib 支持中文
 # plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei'] 
@@ -273,11 +274,25 @@ def create_om_transfer_chart(recommendations_df):
     
     chart_data.plot(kind='bar', ax=ax, width=0.8)
 
+    # 添加數據標籤
+    for p in ax.patches:
+        if p.get_height() > 0:
+            ax.annotate(f'{int(p.get_height())}', 
+                        (p.get_x() + p.get_width() / 2., p.get_height()), 
+                        ha='center', va='center', 
+                        xytext=(0, 9), 
+                        textcoords='offset points',
+                        fontsize=9)
+
     ax.set_title('OM Transfer vs Receive Analysis', fontsize=18, weight='bold')
     ax.set_xlabel('OM Unit', fontsize=14)
     ax.set_ylabel('Transfer Quantity', fontsize=14)
     ax.tick_params(axis='x', rotation=45, labelsize=12)
     ax.tick_params(axis='y', labelsize=12)
+    
+    # 設置Y軸為整數
+    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    
     ax.legend(title='Transfer/Receive Type', fontsize=12)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
 
