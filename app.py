@@ -1,30 +1,81 @@
 import streamlit as st
 import pandas as pd
+import time
 from io import BytesIO
-from utils import preprocess_data, generate_recommendations
+from utils import (
+    preprocess_data, 
+    generate_recommendations, 
+    create_om_transfer_chart, 
+    generate_excel_export
+)
 
-st.set_page_config(layout="wide")
+# 1. 頁面配置
+st.set_page_config(
+    page_title="調貨建議生成系統",
+    page_icon="📦",
+    layout="wide"
+)
 
-st.title("貨品調貨建議系統")
+# 2. 側邊欄設計
+with st.sidebar:
+    st.header("系統資訊")
+    st.info("""
+    **版本：v1.6**
 
-st.info("請上傳 Excel 文件以開始。")
+    **核心功能：**
+    - ✅ ND/RF類型智慧識別
+    - ✅ 優先順序調貨匹配
+    - ✅ RF過剩轉出限制
+    - ✅ 統計分析和圖表
+    - ✅ Excel格式匯出
+    """)
+    st.sidebar.header("操作指引")
+    st.sidebar.markdown("""
+    1.  **上傳 Excel 文件**：點擊瀏覽文件或拖放文件到上傳區域。
+    2.  **啟動分析**：點擊「啟動分析」按鈕開始處理。
+    3.  **查看結果**：在主頁面查看KPI、建議和圖表。
+    4.  **下載報告**：點擊下載按鈕獲取 Excel 報告。
+    """)
 
-# 文件上傳
-uploaded_file = st.file_uploader("上傳 Excel 文件", type=["xlsx", "xls"])
+# 3. 頁面頭部
+st.title("📦 調貨建議生成系統")
+st.markdown("---")
+
+# 4. 主要區塊
+# 4.1. 資料上傳區塊
+st.header("1. 資料上傳")
+uploaded_file = st.file_uploader(
+    "請上傳包含庫存和銷量數據的 Excel 文件",
+    type=["xlsx", "xls"],
+    help="必需欄位：Article, Article Description, RP Type, Site, OM, SaSa Net Stock, Pending Received, Safety Stock, Last Month Sold Qty, MTD Sold Qty"
+)
 
 if uploaded_file is not None:
+    progress_bar = st.progress(0, text="準備開始處理文件...")
     try:
-        # 修正：將檔名轉為小寫以正確判斷引擎
+        # 文件上傳驗證
+        progress_bar.progress(10, text="正在驗證文件格式...")
         engine = 'openpyxl' if uploaded_file.name.lower().endswith('xlsx') else 'xlrd'
         df = pd.read_excel(uploaded_file, engine=engine)
-        st.success("文件上傳成功！")
+        progress_bar.progress(25, text="文件讀取成功！正在驗證內容...")
 
-        # 顯示原始數據預覽
-        with st.expander("顯示原始數據預覽"):
+        if df.empty:
+            st.error("錯誤：上傳的文件為空，請檢查文件內容。")
+            st.stop()
+
+        st.success("文件上傳與初步驗證成功！")
+
+        # 4.2. 資料預覽區塊
+        with st.expander("基本統計和資料樣本展示", expanded=False):
+            st.subheader("資料基本統計")
+            st.dataframe(df.describe())
+            st.subheader("資料樣本（前100行）")
             st.dataframe(df.head(100))
 
         # 數據預處理
+        progress_bar.progress(40, text="正在進行數據預處理與驗證...")
         processed_df, logs = preprocess_data(df.copy())
+        progress_bar.progress(60, text="數據預處理完成！")
 
         # 顯示預處理日誌
         if logs:
@@ -36,47 +87,86 @@ if uploaded_file is not None:
                         st.warning(log)
                     else:
                         st.info(log)
-
+        
         if processed_df is not None:
-            # 生成調貨建議
-            if st.button("生成調貨建議"):
-                with st.spinner("正在分析數據並生成建議..."):
-                    recommendations_df, summary_kpis, summary_details = generate_recommendations(processed_df.copy())
+            # 4.3. 分析按鈕區塊
+            st.header("2. 分析與建議")
+            if st.button("🚀 啟動分析生成調貨建議", type="primary"):
+                progress_bar.progress(70, text="正在分析數據並生成建議...")
+                with st.spinner("演算法運行中，請稍候..."):
+                    (
+                        recommendations_df, 
+                        kpi_metrics, 
+                        stats_by_article, 
+                        stats_by_om, 
+                        transfer_type_dist, 
+                        receive_type_dist
+                    ) = generate_recommendations(processed_df.copy())
+                    time.sleep(1) # 模擬耗時操作
+                progress_bar.progress(90, text="分析完成！正在準備結果展示...")
 
                 if not recommendations_df.empty:
-                    st.subheader("調貨建議")
+                    st.success("分析完成！")
+                    
+                    # 4.4. 結果展示區塊
+                    st.header("3. 分析結果")
+                    
+                    # KPI 指標卡
+                    st.subheader("關鍵指標 (KPIs)")
+                    cols = st.columns(len(kpi_metrics))
+                    for i, (k, v) in enumerate(kpi_metrics.items()):
+                        cols[i].metric(k, v)
+                    
+                    st.markdown("---")
+
+                    # 調貨建議表格
+                    st.subheader("調貨建議清單")
                     st.dataframe(recommendations_df)
 
-                    st.subheader("統計摘要")
-                    # KPI 指標
-                    cols = st.columns(len(summary_kpis))
-                    for i, (k, v) in enumerate(summary_kpis.items()):
-                        cols[i].metric(k, v)
+                    st.markdown("---")
 
-                    # 詳細統計
+                    # 統計圖表
+                    st.subheader("統計分析圖表")
+                    fig = create_om_transfer_chart(recommendations_df)
+                    st.pyplot(fig)
+
+                    # 詳細統計數據
                     with st.expander("查看詳細統計數據"):
-                        for name, detail_df in summary_details.items():
-                            st.write(f"**按 {name.replace('_', ' ')} 統計**")
-                            st.dataframe(detail_df)
+                        st.write("**按產品統計**")
+                        st.dataframe(stats_by_article)
+                        st.write("**按OM統計**")
+                        st.dataframe(stats_by_om)
+                        st.write("**轉出類型分佈**")
+                        st.dataframe(transfer_type_dist)
+                        st.write("**接收類型分佈**")
+                        st.dataframe(receive_type_dist)
 
-                    # 下載功能
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-                        recommendations_df.to_excel(writer, sheet_name='調貨建議', index=False)
-                        # 將統計摘要寫入同一個 Excel 文件的不同工作表
-                        summary_df = pd.DataFrame([summary_kpis])
-                        summary_df.to_excel(writer, sheet_name='統計摘要', index=False)
-                        for name, detail_df in summary_details.items():
-                            detail_df.to_excel(writer, sheet_name=f'按{name}統計', index=False)
-
+                    # 4.5. 匯出區塊
+                    st.header("4. 匯出結果")
+                    st.info("您可以將生成的調貨建議和詳細統計數據匯出為 Excel 文件。")
+                    
+                    excel_data = generate_excel_export(
+                        recommendations_df,
+                        kpi_metrics,
+                        stats_by_article,
+                        stats_by_om,
+                        transfer_type_dist,
+                        receive_type_dist
+                    )
+                    
                     st.download_button(
-                        label="下載調貨建議 (Excel)",
-                        data=output.getvalue(),
-                        file_name="reallocation_recommendations.xlsx",
+                        label="📥 下載調貨建議 (Excel)",
+                        data=excel_data,
+                        file_name=f"調貨建議_{pd.Timestamp.now().strftime('%Y%m%d')}.xlsx",
                         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                     )
+                    progress_bar.progress(100, text="處理完畢！")
                 else:
                     st.info("根據當前規則，沒有生成任何調貨建議。")
+                    progress_bar.progress(100, text="處理完畢！")
 
     except Exception as e:
-        st.error(f"處理文件時發生錯誤: {e}")
+        st.error(f"處理文件時發生嚴重錯誤: {e}")
+        st.exception(e) # 顯示詳細的錯誤追蹤信息
+        if 'progress_bar' in locals():
+            progress_bar.progress(100, text="處理失敗！")
