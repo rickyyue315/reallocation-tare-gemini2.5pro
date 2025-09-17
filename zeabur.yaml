@@ -1,0 +1,11 @@
+services:
+  transfer-optimization-system:
+    build: .
+    ports:
+      - 8501:8501
+    env:
+      - STREAMLIT_SERVER_PORT=8501
+      - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+    resources:
+      cpu: 500m
+      memory: 512Mi

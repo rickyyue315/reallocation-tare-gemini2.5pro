@@ -1,31 +1,34 @@
-## Version 1.7 (In Development)
+# Version History
 
-### ✨ 新功能
+## v1.7 (2025-09-17)
+### New Features
+- Added dual transfer strategies: Conservative (Option A) and Enhanced (Option B)
+- Implemented comprehensive statistical analysis by product and OM
+- Added matplotlib visualization with transfer vs receive analysis
+- Enhanced Excel export with multiple sheets and detailed statistics
+- Improved data validation and preprocessing rules
 
-- **A/B模式選擇**：引入“保守轉貨” (A) 與 “加強轉貨” (B) 兩種模式，允許用戶根據實際需求選擇不同的調貨策略。
-- **加強轉貨邏輯**：實現了“加強轉貨” (B) 的核心演算法，針對銷量較低的RF商品提供更積極的轉出策略。
-- **動態圖表更新**：統計圖表會根據用戶選擇的A/B模式動態展示不同的轉出類型（“RF過剩轉出” vs “RF加強轉出”）。
-- **精細化統計分析**：統計摘要將區分不同模式下的轉出類型分佈。
+### Improvements
+- Optimized user interface with better layout and metrics display
+- Added data processing notes and validation feedback
+- Enhanced error handling and user-friendly messages
+- Improved documentation and file format requirements
 
-### 🛠️ 優化與修復
+### Technical Updates
+- Updated dependencies to latest versions
+- Added comprehensive logging
+- Optimized performance for large datasets
 
-- **Y軸整數顯示**：修正了“OM Transfer vs Receive Analysis”圖表的Y軸，確保其只顯示整數。
-- **圖表數據標籤**：為圖表中的每個條形添加了數據標籤，以更清晰地展示具體數量。
-- **代碼結構優化**：進一步優化了業務邏輯和UI展示的代碼，以支持A/B模式的切換。
+## v1.6 (2025-09-10)
+### Initial Release
+- Basic Streamlit interface implementation
+- Fundamental data validation and preprocessing
+- Basic transfer logic for ND and RF types
+- Simple Excel export functionality
+- Basic statistics display
 
-## Version 1.6 (2025-09-17)
-
-### ✨ 新功能
-
-- **引入優先順序匹配**：實現了基於優先順序的調貨建議匹配演算法，確保緊急和高潛力需求優先得到滿足。
-- **RF過剩轉出限制**：新增對RF類型（補貨）的過剩庫存轉出限制，轉出數量不超過 `(庫存+在途) × 20%`，但最少保證2件，以避免過度調貨。
-- **統計分析儀表板**：增加了詳細的統計分析功能，包括KPI指標、按產品和OM的多維度統計。
-- **數據視覺化**：集成了matplotlib圖表，可視化展示各OM的調出與接收數量對比。
-- **多工作表Excel匯出**：匯出的Excel文件現在包含兩個工作表：“調貨建議”和“統計摘要”，內容更全面。
-
-### 🛠️ 優化與修復
-
-- **銷量計算邏輯優化**：明確了“有效銷量”的計算規則，優先使用上月銷量。
-- **UI佈局改進**：採用寬屏佈局，並對側邊欄和主區域進行了重新設計，提升了用戶體驗。
-- **錯誤處理增強**：對文件上傳、數據處理和業務邏輯中的潛在異常增加了更詳細的捕獲和提示。
-- **代碼重構**：將核心業務邏輯、數據處理和輔助功能模組化到 `utils.py` 中，使主應用 `app.py` 更簡潔。
+## v1.5 (2025-09-05) 
+- Initial prototype development
+- Basic data processing framework
+- Core transfer algorithm implementation
+- Simple user interface
