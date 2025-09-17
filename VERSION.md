@@ -1,34 +1,24 @@
-# Version History
+## Version 1.7 (2025-09-19)
 
-## v1.7 (2025-09-17)
-### New Features
-- Added dual transfer strategies: Conservative (Option A) and Enhanced (Option B)
-- Implemented comprehensive statistical analysis by product and OM
-- Added matplotlib visualization with transfer vs receive analysis
-- Enhanced Excel export with multiple sheets and detailed statistics
-- Improved data validation and preprocessing rules
+### ✨ 功能還原與簡化
 
-### Improvements
-- Optimized user interface with better layout and metrics display
-- Added data processing notes and validation feedback
-- Enhanced error handling and user-friendly messages
-- Improved documentation and file format requirements
+- **核心邏輯還原**: 將系統核心業務邏輯從 v1.8 的四模式（A/B/C/D）設計還原至 v1.6 的雙模式（A/B）架構，以確保業務邏輯的穩定與專注。
+- **使用者介面簡化**: 移除了前端介面中的 C/D 模式選擇功能，簡化了使用者的操作路徑，使其更加直觀。
+- **專案結構清理**: 刪除了與 v1.8 版本相關的測試腳本、測試數據及不再需要的程式碼，優化了專案的整體結構。
 
-### Technical Updates
-- Updated dependencies to latest versions
-- Added comprehensive logging
-- Optimized performance for large datasets
+## Version 1.6 (2025-09-17)
 
-## v1.6 (2025-09-10)
-### Initial Release
-- Basic Streamlit interface implementation
-- Fundamental data validation and preprocessing
-- Basic transfer logic for ND and RF types
-- Simple Excel export functionality
-- Basic statistics display
+### ✨ 新功能
 
-## v1.5 (2025-09-05) 
-- Initial prototype development
-- Basic data processing framework
-- Core transfer algorithm implementation
-- Simple user interface
+- **引入優先順序匹配**：實現了基於優先順序的調貨建議匹配演算法，確保緊急和高潛力需求優先得到滿足。
+- **RF過剩轉出限制**：新增對RF類型（補貨）的過剩庫存轉出限制，轉出數量不超過 `(庫存+在途) × 20%`，但最少保證2件，以避免過度調貨。
+- **統計分析儀表板**：增加了詳細的統計分析功能，包括KPI指標、按產品和OM的多維度統計。
+- **數據視覺化**：集成了matplotlib圖表，可視化展示各OM的調出與接收數量對比。
+- **多工作表Excel匯出**：匯出的Excel文件現在包含兩個工作表：“調貨建議”和“統計摘要”，內容更全面。
+
+### 🛠️ 優化與修復
+
+- **銷量計算邏輯優化**：明確了“有效銷量”的計算規則，優先使用上月銷量。
+- **UI佈局改進**：採用寬屏佈局，並對側邊欄和主區域進行了重新設計，提升了用戶體驗。
+- **錯誤處理增強**：對文件上傳、數據處理和業務邏輯中的潛在異常增加了更詳細的捕獲和提示。
+- **代碼重構**：將核心業務邏輯、數據處理和輔助功能模組化到 `utils.py` 中，使主應用 `app.py` 更簡潔。

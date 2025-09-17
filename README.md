@@ -1,90 +1,73 @@
-# 📦 Inventory Transfer Optimization System
+# 📦 調貨建議生成系統 v1.8
 
-A Streamlit-based retail inventory transfer recommendation generation system that intelligently analyzes inventory data and provides optimized transfer suggestions between stores.
+本系統是一個基於Streamlit的Web應用，旨在幫助零售企業根據庫存、銷量和安全庫存等數據，智能生成店鋪間的調貨建議，以優化庫存分配，減少缺貨和庫存積壓。
 
-## 🚀 Features
+## ✨ 核心功能
 
-- **Smart Data Processing**: Automatic data validation and preprocessing
-- **Dual Transfer Strategies**: 
-  - Option A: Conservative Transfer (20% surplus limit)
-  - Option B: Enhanced Transfer (50% surplus limit)
-- **Priority-based Matching**: Intelligent matching of transfer-out and receive candidates
-- **Comprehensive Analytics**: Detailed statistics and visualizations
-- **Excel Export**: Multi-sheet Excel report generation
-- **User-friendly Interface**: Streamlit-based web interface
+- **智能調貨建議**：根據預設的業務規則，自動識別可轉出和應接收的商品及店鋪。
+- **四種調貨模式**：
+    - **A模式 (保守轉貨)**：僅轉出確定過剩的庫存。
+    - **B模式 (加強轉貨)**：更積極地轉出可能過剩的庫存。
+    - **C模式 (按OM調配)**：嚴格限制調貨必須在相同的營運單位 (OM) 內進行。
+    - **D模式 (按港澳調配)**：允許在香港與澳門的特定站點分組之間進行更靈活的調貨。
+- **數據驅動**：基於上傳的Excel數據文件進行分析。
+- **可視化分析**：提供圖表展示各營運單位的調出與接收情況。
+- **報告匯出**：可將生成的調貨建議和統計摘要匯出為符合v1.8規範的雙工作表Excel文件。
 
-## 📋 Required Data Format
+## 🚀 如何運行
 
-### Mandatory Columns:
-- `Article`: Product code (string)
-- `Article Description`: Product description (string)
-- `RP Type`: Replenishment type (ND/RF)
-- `Site`: Store code (string)
-- `OM`: Operational management unit (string)
-- `MOQ`: Minimum order quantity (numeric)
-- `SaSa Net Stock`: Current inventory quantity (numeric)
-- `Pending Received`: In-transit order quantity (numeric)
-- `Safety Stock`: Safety stock quantity (numeric)
-- `Last Month Sold Qty`: Last month sales quantity (numeric)
-- `MTD Sold Qty`: Month-to-date sales quantity (numeric)
+1.  **安裝依賴**：
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-## 🔧 Installation
+2.  **運行應用**：
+    - Windows:
+      ```bash
+      run.bat
+      ```
+    - macOS / Linux:
+      ```bash
+      chmod +x run.sh
+      ./run.sh
+      ```
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd inventory-transfer-system
+3.  **訪問應用**：
+    在瀏覽器中打開應用啟動後顯示的URL（通常是 `http://localhost:8501`）。
+
+## 🧪 如何測試
+
+本專案包含一個自動化測試腳本，用於驗證核心功能的正確性。
+
+1.  **運行測試**：
+    ```bash
+    python test_chart_v1.8.py
+    ```
+    此腳本會：
+    - 如果 `test_data_v1.8.xlsx` 不存在，則會自動生成。
+    - 執行數據預處理。
+    - 在全部四種模式 (A, B, C, D) 下生成調貨建議並進行驗證。
+    - 創建並保存在四種模式下的分析圖表。
+
+## 🛠️ 技術棧
+
+- **前端**：Streamlit (>=1.28.0)
+- **數據處理**：pandas (>=2.0.0), numpy (>=1.24.0)
+- **Excel處理**：openpyxl (>=3.1.0), xlrd, xlsxwriter
+- **視覺化**：matplotlib (>=3.7.0), seaborn (>=0.13.0)
+
+## 📁 專案結構
+
 ```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
+.
+├── .venv/                  # 虛擬環境
+├── app.py                  # Streamlit主應用文件
+├── utils.py                # 核心功能模組
+├── requirements.txt        # 依賴包列表
+├── README.md               # 項目說明文檔
+├── VERSION.md              # 版本更新記錄
+├── run.bat                 # Windows運行腳本
+├── run.sh                  # macOS/Linux運行腳本
+├── test_chart_v1.8.py      # v1.8 自動化測試腳本
+└── test_data_v1.8.xlsx     # v1.8 測試數據文件
 ```
-
-3. Run the application:
-```bash
-streamlit run app.py
-```
-
-Or use the batch file:
-```bash
-run.bat
-```
-
-## 🎯 Transfer Strategies
-
-### Option A: Conservative Transfer
-- **ND Type**: Complete transfer-out of all available stock
-- **RF Type**: Surplus transfer-out with 20% upper limit (minimum 2 pieces)
-
-### Option B: Enhanced Transfer  
-- **ND Type**: Complete transfer-out of all available stock
-- **RF Type**: Enhanced transfer-out with 50% upper limit (minimum 2 pieces)
-- **Sales-based prioritization**: Transfer from lowest sales locations first
-
-## 📊 Output Features
-
-- **Transfer Recommendations**: Detailed transfer suggestions with quantities
-- **Statistical Analysis**: By product, by OM, transfer type distributions
-- **Visualizations**: Matplotlib bar charts showing transfer vs receive analysis
-- **Excel Export**: Comprehensive multi-sheet Excel report
-
-## 🛠️ Technical Stack
-
-- **Frontend**: Streamlit (>=1.28.0)
-- **Data Processing**: pandas (>=2.0.0), numpy (>=1.24.0)
-- **Excel Handling**: openpyxl (>=3.1.0)
-- **Visualization**: matplotlib (>=3.7.0), seaborn (>=0.12.0)
-
-## 📝 Version History
-
-- **v1.7**: Added dual transfer strategies, enhanced analytics, and improved UI
-- **v1.6**: Initial release with basic transfer logic
-
-## 👨‍💻 Developer
-
-**Ricky** - Inventory Optimization Specialist
-
-## 📄 License
-
-This project is proprietary software developed for internal use.
