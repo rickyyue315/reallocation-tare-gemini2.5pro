@@ -179,7 +179,18 @@ def generate_recommendations(df, transfer_mode):
     
     senders, receivers = _calculate_candidates(df, transfer_mode)
     
-    senders.sort(key=lambda x: x['priority'])
+    # 根據新的業務邏輯調整排序
+    # 1. ND 類型 (priority 1) 優先處理
+    # 2. RF 類型 (priority 2) 根據以下規則排序:
+    #    - 優先處理可轉出數量 >= 2 的店舖
+    #    - 其次，按當前庫存量從高到低排序
+    nd_senders = [s for s in senders if s['priority'] == 1]
+    rf_senders = [s for s in senders if s['priority'] == 2]
+    
+    # 複合排序：(可轉出>=2, 當前庫存) -> 降序
+    rf_senders.sort(key=lambda x: (x['available_qty'] >= 2, x['current_stock']), reverse=True)
+    
+    senders = nd_senders + rf_senders
     receivers.sort(key=lambda x: x['priority'])
 
     for sender in senders:
@@ -191,13 +202,19 @@ def generate_recommendations(df, transfer_mode):
                 
                 transfer_qty = min(sender['available_qty'], receiver['needed_qty'])
                 
-                if transfer_qty == 1:
-                    if (sender['current_stock'] - 2) >= sender['data']['Safety Stock']:
-                         transfer_qty = 2
-
+                # 新的排序邏輯已取代舊的單件轉出規則
                 final_transfer_qty = min(transfer_qty, sender['current_stock'])
                 
                 if final_transfer_qty > 0:
+                    sender_type = sender['type']
+                    # B模式下，根據轉出後庫存是否低於安全庫存，重新定義轉出類型
+                    if transfer_mode.startswith('B') and sender['type'] == 'RF加強轉出':
+                        remaining_stock = sender['current_stock'] - final_transfer_qty
+                        safety_stock = sender['data']['Safety Stock']
+                        if remaining_stock >= safety_stock:
+                            sender_type = 'RF過剩轉出'
+                        # 如果不滿足，sender_type 保持為 'RF加強轉出'
+
                     recommendations.append({
                         'Article': sender['data']['Article'],
                         'Product Desc': sender['data']['Article Description'],
@@ -209,8 +226,8 @@ def generate_recommendations(df, transfer_mode):
                         'After Transfer Stock': sender['current_stock'] - final_transfer_qty,
                         'Safety Stock': sender['data']['Safety Stock'],
                         'MOQ': sender['data']['MOQ'],
-                        'Notes': f"{sender['type']} -> {receiver['type']}",
-                        '_sender_type': sender['type'],
+                        'Notes': f"{sender_type} -> {receiver['type']}",
+                        '_sender_type': sender_type,
                         '_receiver_type': receiver['type']
                     })
                     sender['available_qty'] -= final_transfer_qty
@@ -259,25 +276,24 @@ def create_om_transfer_chart(recommendations_df, transfer_mode):
 
     df = recommendations_df.copy()
 
-    if transfer_mode.startswith('B'):
-        rf_transfer_type = 'RF加強轉出'
-        rf_legend_label = 'RF Enhanced Transfer Out'
-    else:
-        rf_transfer_type = 'RF過剩轉出'
-        rf_legend_label = 'RF Surplus Transfer Out'
-        
     nd_transfer = df[df['_sender_type'] == 'ND轉出'].groupby('OM')['Transfer Qty'].sum()
-    rf_transfer = df[df['_sender_type'] == rf_transfer_type].groupby('OM')['Transfer Qty'].sum()
-    
+    rf_surplus_transfer = df[df['_sender_type'] == 'RF過剩轉出'].groupby('OM')['Transfer Qty'].sum()
+
+    transfer_data_dict = {
+        'ND Transfer Out': nd_transfer,
+        'RF Surplus Transfer Out': rf_surplus_transfer
+    }
+
+    if transfer_mode.startswith('B'):
+        rf_enhanced_transfer = df[df['_sender_type'] == 'RF加強轉出'].groupby('OM')['Transfer Qty'].sum()
+        transfer_data_dict['RF Enhanced Transfer Out'] = rf_enhanced_transfer
+        
     urgent_receive = df[df['_receiver_type'] == '緊急缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
     potential_receive = df[df['_receiver_type'] == '潛在缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
 
     all_oms = df['OM'].unique()
     
-    transfer_data = pd.DataFrame({
-        'ND Transfer Out': nd_transfer, 
-        rf_legend_label: rf_transfer
-    }).reindex(all_oms).fillna(0)
+    transfer_data = pd.DataFrame(transfer_data_dict).reindex(all_oms).fillna(0)
     
     receive_data = pd.DataFrame({
         'Urgent Shortage Receive': urgent_receive, 
