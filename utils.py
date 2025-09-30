@@ -134,18 +134,20 @@ def _calculate_candidates(df, transfer_mode):
                         })
 
             # --- 接收候選邏輯 ---
-            if row['RP Type'] == 'RF' and stock == 0 and effective_sales > 0:
-                receivers.append({
-                    'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
-                    'needed_qty': safety_stock
-                })
-            elif row['RP Type'] == 'RF' and (stock + pending) < safety_stock and effective_sales == max_sales_in_group:
+            if row['RP Type'] == 'RF' and (stock + pending) < safety_stock:
                 needed = safety_stock - (stock + pending)
                 if needed > 0:
-                    receivers.append({
-                        'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
-                        'needed_qty': needed
-                    })
+                    # 根據庫存狀況和銷售潛力定義接收類型
+                    if stock == 0 and effective_sales > 0:
+                        receivers.append({
+                            'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
+                            'needed_qty': needed, 'effective_sales': effective_sales
+                        })
+                    else:
+                        receivers.append({
+                            'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
+                            'needed_qty': needed, 'effective_sales': effective_sales
+                        })
                     
     return senders, receivers
 
@@ -191,14 +193,20 @@ def generate_recommendations(df, transfer_mode):
     rf_senders.sort(key=lambda x: (x['available_qty'] >= 2, x['current_stock']), reverse=True)
     
     senders = nd_senders + rf_senders
-    receivers.sort(key=lambda x: x['priority'])
+    # 接收方排序：優先級 -> 銷售量 -> 需求量
+    receivers.sort(key=lambda x: (x['priority'], x['effective_sales'], x['needed_qty']), reverse=True)
+
+    # 建立事務鎖，防止同一SKU在同一次調撥中既是轉出方又是接收方
+    locked_sites = set()
 
     for sender in senders:
         for receiver in receivers:
             if sender['available_qty'] > 0 and receiver['needed_qty'] > 0 and \
                sender['data']['Article'] == receiver['data']['Article'] and \
                sender['data']['OM'] == receiver['data']['OM'] and \
-               sender['data']['Site'] != receiver['data']['Site']:
+               sender['data']['Site'] != receiver['data']['Site'] and \
+               sender['data']['Site'] not in locked_sites and \
+               receiver['data']['Site'] not in locked_sites:
                 
                 transfer_qty = min(sender['available_qty'], receiver['needed_qty'])
                 
@@ -233,6 +241,10 @@ def generate_recommendations(df, transfer_mode):
                     sender['available_qty'] -= final_transfer_qty
                     receiver['needed_qty'] -= final_transfer_qty
                     sender['current_stock'] -= final_transfer_qty
+                    
+                    # 將涉及的站點加入鎖
+                    locked_sites.add(sender['data']['Site'])
+                    locked_sites.add(receiver['data']['Site'])
 
     if not recommendations:
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
