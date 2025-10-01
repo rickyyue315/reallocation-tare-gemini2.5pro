@@ -105,16 +105,17 @@ if uploaded_file is not None:
                 potential = estimate_transfer_potential(st.session_state.cleaned_df.copy())
             
             st.subheader("潛在調貨量預估")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("總需求量", f"{potential['total_needed']} 件")
-            col2.metric("A模式潛在可轉出", f"{potential['potential_transfer_A']} 件")
-            col3.metric("B模式潛在可轉出", f"{potential['potential_transfer_B']} 件")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("A/B模式總需求量", f"{potential['total_needed_A']} 件")
+            col2.metric("C模式總需求量", f"{potential['total_needed_C']} 件")
+            col3.metric("A模式潛在可轉出", f"{potential['potential_transfer_A']} 件")
+            col4.metric("B模式潛在可轉出", f"{potential['potential_transfer_B']} 件")
 
             transfer_mode = st.radio(
                 "請根據預估選擇轉貨力度：",
-                ('A: 保守轉貨', 'B: 加強轉貨'),
+                ('A: 保守轉貨', 'B: 加強轉貨', 'C: 重點補0'),
                 key='transfer_mode',
-                help="A模式優先保障安全庫存，B模式則更積極地處理滯銷品。"
+                help="A模式優先保障安全庫存，B模式則更積極地處理滯銷品，C模式專注於補貨庫存極低的店鋪。"
             )
             
             st.info(f"當前選擇的模式為： **{transfer_mode}**")

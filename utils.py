@@ -77,7 +77,7 @@ def _calculate_candidates(df, transfer_mode):
     內部輔助函數，根據業務規則識別轉出和接收候選。
     此函數不執行匹配。
     """
-    mode = transfer_mode[0]  # 'A' or 'B'
+    mode = transfer_mode[0]  # 'A', 'B', or 'C'
     
     senders = []
     receivers = []
@@ -134,20 +134,29 @@ def _calculate_candidates(df, transfer_mode):
                         })
 
             # --- 接收候選邏輯 ---
-            if row['RP Type'] == 'RF' and (stock + pending) < safety_stock:
-                needed = safety_stock - (stock + pending)
-                if needed > 0:
-                    # 根據庫存狀況和銷售潛力定義接收類型
-                    if stock == 0 and effective_sales > 0:
+            if mode == 'C':
+                if row['RP Type'] == 'RF' and (stock + pending) <= 1:
+                    needed = min(safety_stock, moq + 1)
+                    if needed > 0:
                         receivers.append({
-                            'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
+                            'type': 'C模式重點補0', 'priority': 0, 'data': row,
                             'needed_qty': needed, 'effective_sales': effective_sales
                         })
-                    else:
-                        receivers.append({
-                            'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
-                            'needed_qty': needed, 'effective_sales': effective_sales
-                        })
+            else:
+                if row['RP Type'] == 'RF' and (stock + pending) < safety_stock:
+                    needed = safety_stock - (stock + pending)
+                    if needed > 0:
+                        # 根據庫存狀況和銷售潛力定義接收類型
+                        if stock == 0 and effective_sales > 0:
+                            receivers.append({
+                                'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
+                                'needed_qty': needed, 'effective_sales': effective_sales
+                            })
+                        else:
+                            receivers.append({
+                                'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
+                                'needed_qty': needed, 'effective_sales': effective_sales
+                            })
                     
     return senders, receivers
 
@@ -159,17 +168,20 @@ def estimate_transfer_potential(df):
     df_copy = df.copy()
     df_copy['Effective Sold Qty'] = np.where(df_copy['Last Month Sold Qty'] > 0, df_copy['Last Month Sold Qty'], df_copy['MTD Sold Qty'])
 
-    senders_A, receivers = _calculate_candidates(df_copy, 'A: 保守轉貨')
+    senders_A, receivers_A = _calculate_candidates(df_copy, 'A: 保守轉貨')
     senders_B, _ = _calculate_candidates(df_copy, 'B: 加強轉貨')
+    _, receivers_C = _calculate_candidates(df_copy, 'C: 重點補0')
 
-    total_needed = sum(r['needed_qty'] for r in receivers)
+    total_needed_A = sum(r['needed_qty'] for r in receivers_A)
+    total_needed_C = sum(r['needed_qty'] for r in receivers_C)
     potential_A = sum(s['available_qty'] for s in senders_A)
     potential_B = sum(s['available_qty'] for s in senders_B)
 
     return {
         "potential_transfer_A": int(potential_A),
         "potential_transfer_B": int(potential_B),
-        "total_needed": int(total_needed)
+        "total_needed_A": int(total_needed_A),
+        "total_needed_C": int(total_needed_C)
     }
 
 def generate_recommendations(df, transfer_mode):
@@ -200,7 +212,13 @@ def generate_recommendations(df, transfer_mode):
     locked_sites = set()
 
     for sender in senders:
-        for receiver in receivers:
+        # 在C模式下，為每個發送者重置接收者列表
+        if transfer_mode.startswith('C'):
+            _, receivers_for_sender = _calculate_candidates(df[df['Article'] == sender['data']['Article']], transfer_mode)
+        else:
+            receivers_for_sender = receivers
+
+        for receiver in receivers_for_sender:
             if sender['available_qty'] > 0 and receiver['needed_qty'] > 0 and \
                sender['data']['Article'] == receiver['data']['Article'] and \
                sender['data']['OM'] == receiver['data']['OM'] and \
@@ -302,15 +320,20 @@ def create_om_transfer_chart(recommendations_df, transfer_mode):
         
     urgent_receive = df[df['_receiver_type'] == '緊急缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
     potential_receive = df[df['_receiver_type'] == '潛在缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
+    c_mode_receive = df[df['_receiver_type'] == 'C模式重點補0'].groupby('OM')['Transfer Qty'].sum()
 
     all_oms = df['OM'].unique()
     
     transfer_data = pd.DataFrame(transfer_data_dict).reindex(all_oms).fillna(0)
     
-    receive_data = pd.DataFrame({
+    receive_data_dict = {
         'Urgent Shortage Receive': urgent_receive, 
         'Potential Shortage Receive': potential_receive
-    }).reindex(all_oms).fillna(0)
+    }
+    if transfer_mode.startswith('C'):
+        receive_data_dict['C Mode Zero Fill'] = c_mode_receive
+
+    receive_data = pd.DataFrame(receive_data_dict).reindex(all_oms).fillna(0)
     
     chart_data = pd.concat([transfer_data, receive_data], axis=1).fillna(0)
 
