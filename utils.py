@@ -105,7 +105,7 @@ def _calculate_candidates(df, transfer_mode):
                     'available_qty': stock, 'current_stock': stock
                 })
             
-            if mode == 'A':
+            if mode == 'A' or mode == 'C': # 在C模式下也允許RF過剩轉出
                 if row['RP Type'] == 'RF' and (stock + pending) > safety_stock and effective_sales < max_sales_in_group:
                     base_transferable = (stock + pending) - safety_stock
                     upper_limit = (stock + pending) * 0.2
@@ -136,11 +136,11 @@ def _calculate_candidates(df, transfer_mode):
             # --- 接收候選邏輯 ---
             if mode == 'C':
                 if row['RP Type'] == 'RF' and (stock + pending) <= 1:
-                    needed = min(safety_stock, moq + 1)
+                    needed = max(row['Safety Stock'] * 0.5, 3)
                     if needed > 0:
                         receivers.append({
                             'type': 'C模式重點補0', 'priority': 0, 'data': row,
-                            'needed_qty': needed, 'effective_sales': effective_sales
+                            'needed_qty': int(needed), 'effective_sales': effective_sales
                         })
             else:
                 if row['RP Type'] == 'RF' and (stock + pending) < safety_stock:
