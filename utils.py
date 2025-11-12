@@ -136,27 +136,52 @@ def _calculate_candidates(df, transfer_mode):
             # --- 接收候選邏輯 ---
             if mode == 'C':
                 if row['RP Type'] == 'RF' and (stock + pending) <= 1:
-                    needed = max(row['Safety Stock'] * 0.5, 3)
+                    base_needed = max(row['Safety Stock'] * 0.5, 3)
+                    if row['Safety Stock'] == 0:
+                        base_needed = max(row['MOQ'], 3)
+                    needed = int(base_needed)
                     if needed > 0:
                         receivers.append({
                             'type': 'C模式重點補0', 'priority': 0, 'data': row,
-                            'needed_qty': int(needed), 'effective_sales': effective_sales
+                            'needed_qty': needed, 'effective_sales': effective_sales
                         })
+                # C模式下：ND 零庫存也給予起始補貨需求
+                if row['RP Type'] == 'ND' and (stock + pending) <= 1:
+                    needed = int(max(row['MOQ'], 3))
+                    receivers.append({
+                        'type': 'ND起始補貨', 'priority': 1, 'data': row,
+                        'needed_qty': needed, 'effective_sales': effective_sales
+                    })
             else:
-                if row['RP Type'] == 'RF' and (stock + pending) < safety_stock:
-                    needed = safety_stock - (stock + pending)
-                    if needed > 0:
-                        # 根據庫存狀況和銷售潛力定義接收類型
-                        if stock == 0 and effective_sales > 0:
-                            receivers.append({
-                                'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
-                                'needed_qty': needed, 'effective_sales': effective_sales
-                            })
-                        else:
-                            receivers.append({
-                                'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
-                                'needed_qty': needed, 'effective_sales': effective_sales
-                            })
+                if row['RP Type'] == 'RF':
+                    if (stock + pending) < safety_stock:
+                        needed = safety_stock - (stock + pending)
+                        if needed > 0:
+                            # 根據庫存狀況和銷售潛力定義接收類型
+                            if stock == 0 and effective_sales > 0:
+                                receivers.append({
+                                    'type': '緊急缺貨補貨', 'priority': 1, 'data': row,
+                                    'needed_qty': needed, 'effective_sales': effective_sales
+                                })
+                            else:
+                                receivers.append({
+                                    'type': '潛在缺貨補貨', 'priority': 2, 'data': row,
+                                    'needed_qty': needed, 'effective_sales': effective_sales
+                                })
+                    # 針對安全庫存為0但存在缺貨的店鋪，補充起始需求
+                    elif (stock + pending) == 0 and safety_stock == 0:
+                        needed = int(max(row['MOQ'], 3))
+                        receivers.append({
+                            'type': '起始補貨需求', 'priority': 1, 'data': row,
+                            'needed_qty': needed, 'effective_sales': effective_sales
+                        })
+                # A/B模式下：ND 零庫存補起始需求
+                if row['RP Type'] == 'ND' and (stock + pending) == 0:
+                    needed = int(max(row['MOQ'], 3))
+                    receivers.append({
+                        'type': 'ND起始補貨', 'priority': 1, 'data': row,
+                        'needed_qty': needed, 'effective_sales': effective_sales
+                    })
                     
     return senders, receivers
 
@@ -321,6 +346,7 @@ def create_om_transfer_chart(recommendations_df, transfer_mode):
     urgent_receive = df[df['_receiver_type'] == '緊急缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
     potential_receive = df[df['_receiver_type'] == '潛在缺貨補貨'].groupby('OM')['Transfer Qty'].sum()
     c_mode_receive = df[df['_receiver_type'] == 'C模式重點補0'].groupby('OM')['Transfer Qty'].sum()
+    initial_receive = df[df['_receiver_type'].isin(['起始補貨需求', 'ND起始補貨'])].groupby('OM')['Transfer Qty'].sum()
 
     all_oms = df['OM'].unique()
     
@@ -328,7 +354,8 @@ def create_om_transfer_chart(recommendations_df, transfer_mode):
     
     receive_data_dict = {
         'Urgent Shortage Receive': urgent_receive, 
-        'Potential Shortage Receive': potential_receive
+        'Potential Shortage Receive': potential_receive,
+        'Initial Stock Receive': initial_receive
     }
     if transfer_mode.startswith('C'):
         receive_data_dict['C Mode Zero Fill'] = c_mode_receive
