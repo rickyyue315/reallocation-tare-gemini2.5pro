@@ -9,7 +9,7 @@ from matplotlib.ticker import MaxNLocator
 def preprocess_data(df):
     logs = []
     required_cols = [
-        'Article', 'Article Description', 'RP Type', 'Site', 'OM', 'MOQ',
+        'Article', 'Article Description', 'RP Type', 'Site', 'OM',
         'SaSa Net Stock', 'Pending Received', 'Safety Stock',
         'Last Month Sold Qty', 'MTD Sold Qty'
     ]
@@ -20,6 +20,10 @@ def preprocess_data(df):
         logs.append(error_msg)
         st.error(error_msg)
         return None, logs
+
+    if 'MOQ' not in df.columns:
+        df['MOQ'] = 1
+        logs.append("Warning: 缺少 'MOQ' 欄位，已預設為1。")
 
     df['Notes'] = ''
 
@@ -233,8 +237,7 @@ def generate_recommendations(df, transfer_mode):
     # 接收方排序：優先級 -> 銷售量 -> 需求量
     receivers.sort(key=lambda x: (x['priority'], x['effective_sales'], x['needed_qty']), reverse=True)
 
-    # 建立事務鎖，防止同一SKU在同一次調撥中既是轉出方又是接收方
-    locked_sites = set()
+    locked_sites_by_article = {}
 
     for sender in senders:
         # 在C模式下，為每個發送者重置接收者列表
@@ -244,12 +247,15 @@ def generate_recommendations(df, transfer_mode):
             receivers_for_sender = receivers
 
         for receiver in receivers_for_sender:
+            article_key = sender['data']['Article']
+            if article_key not in locked_sites_by_article:
+                locked_sites_by_article[article_key] = set()
             if sender['available_qty'] > 0 and receiver['needed_qty'] > 0 and \
                sender['data']['Article'] == receiver['data']['Article'] and \
                sender['data']['OM'] == receiver['data']['OM'] and \
                sender['data']['Site'] != receiver['data']['Site'] and \
-               sender['data']['Site'] not in locked_sites and \
-               receiver['data']['Site'] not in locked_sites:
+               sender['data']['Site'] not in locked_sites_by_article[article_key] and \
+               receiver['data']['Site'] not in locked_sites_by_article[article_key]:
                 
                 transfer_qty = min(sender['available_qty'], receiver['needed_qty'])
                 
@@ -285,9 +291,8 @@ def generate_recommendations(df, transfer_mode):
                     receiver['needed_qty'] -= final_transfer_qty
                     sender['current_stock'] -= final_transfer_qty
                     
-                    # 將涉及的站點加入鎖
-                    locked_sites.add(sender['data']['Site'])
-                    locked_sites.add(receiver['data']['Site'])
+                    locked_sites_by_article[article_key].add(sender['data']['Site'])
+                    locked_sites_by_article[article_key].add(receiver['data']['Site'])
 
     if not recommendations:
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
