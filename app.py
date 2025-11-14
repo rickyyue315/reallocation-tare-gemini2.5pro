@@ -17,6 +17,89 @@ st.set_page_config(
     layout="wide"
 )
 
+def apply_ui_style():
+    st.markdown(
+        "<link href='https://fonts.googleapis.com/icon?family=Material+Icons' rel='stylesheet'>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        """
+        <style>
+        :root {
+          --color-bg: #F7F7F7;
+          --color-surface: #FFFFFF;
+          --color-border: #E5E5E5;
+          --color-text: #333333;
+          --color-text-muted: #666666;
+          --color-text-disabled: #999999;
+          --color-brand: #2B6CB0;
+          --radius-4: 4px;
+          --radius-8: 8px;
+          --elev-2: 0 2px 8px rgba(0,0,0,0.08);
+          --elev-3: 0 4px 12px rgba(0,0,0,0.10);
+          --elev-4: 0 8px 24px rgba(0,0,0,0.12);
+        }
+        [data-testid="stAppViewContainer"] { background: var(--color-bg); }
+        [data-testid="stSidebar"] { background: var(--color-surface); border-right: 1px solid var(--color-border); }
+        h1, h2, h3, h4, h5 { color: var(--color-text); }
+        h3, h4 { margin-top: 16px; margin-bottom: 12px; }
+        hr { border: none; border-top: 1px solid var(--color-border); margin: 24px 0; }
+        div.stButton > button {
+          background: var(--color-brand);
+          color: #fff;
+          border-radius: var(--radius-8);
+          box-shadow: var(--elev-3);
+          border: none;
+        }
+        div.stButton > button:hover { filter: brightness(0.92); }
+        div.stDownloadButton > button {
+          background: var(--color-brand);
+          color: #fff;
+          border-radius: var(--radius-8);
+          box-shadow: var(--elev-2);
+          border: none;
+        }
+        .stTextInput > div > div > input, .stSelectbox > div > div {
+          border-radius: var(--radius-4);
+          background: var(--color-surface);
+          border: 1px solid var(--color-border);
+        }
+        /* Radio group去除不合背景的盒框，改用品牌選取色 */
+        .stRadio > div {
+          background: transparent !important;
+          border: none !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+        }
+        .stRadio label { color: var(--color-text); margin: 4px 0; }
+        input[type="radio"] { accent-color: var(--color-brand); }
+        div[data-testid="stMetric"] {
+          background: var(--color-surface);
+          border-radius: var(--radius-8);
+          box-shadow: var(--elev-2);
+          border: 1px solid var(--color-border);
+          padding: 16px;
+          margin-bottom: 24px;
+        }
+        .stDataFrame {
+          background: var(--color-surface);
+          border-radius: var(--radius-8);
+          box-shadow: var(--elev-2);
+          border: 1px solid var(--color-border);
+          padding: 8px;
+          margin-bottom: 24px;
+        }
+        div[data-testid="stHorizontalBlock"] { column-gap: 24px; row-gap: 24px; }
+        div[data-testid="stVerticalBlock"] { row-gap: 24px; }
+        [data-testid="stAppViewContainer"] .block-container { max-width: 1200px; }
+        .block-container { padding-top: 24px; padding-bottom: 24px; }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+apply_ui_style()
+
 # 2. 側邊欄設計
 with st.sidebar:
     st.header("系統資訊")
