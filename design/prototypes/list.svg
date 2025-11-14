@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="1440" height="1024" fill="#F7F7F7"/>
+
+<rect x="0" y="0" width="1440" height="64" fill="#FFFFFF"/>
+<rect x="0" y="64" width="1440" height="4" fill="#000000" opacity="0.06"/>
+
+<rect x="0" y="68" width="280" height="956" fill="#FFFFFF"/>
+<rect x="280" y="68" width="1" height="956" fill="#E5E5E5"/>
+
+<text x="24" y="40" font-family="Inter, Noto Sans TC" font-size="18" fill="#333333">清單頁</text>
+<rect x="1240" y="16" width="160" height="32" rx="8" fill="#2B6CB0"/>
+<text x="1264" y="37" font-family="Inter, Noto Sans TC" font-size="14" fill="#FFFFFF">新增項目</text>
+
+<text x="304" y="100" font-family="Inter, Noto Sans TC" font-size="18" fill="#333333">資料清單</text>
+
+<rect x="304" y="120" width="360" height="40" rx="8" fill="#FFFFFF"/>
+<rect x="304" y="160" width="360" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="324" cy="140" r="12" fill="#666666"/>
+<text x="348" y="146" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">搜尋關鍵字</text>
+
+<rect x="680" y="120" width="120" height="32" rx="16" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="704" y="142" font-family="Inter, Noto Sans TC" font-size="12" fill="#2B6CB0">狀態：全部</text>
+
+<rect x="812" y="120" width="120" height="32" rx="16" fill="#FFFFFF" stroke="#3B7A78"/>
+<text x="836" y="142" font-family="Inter, Noto Sans TC" font-size="12" fill="#3B7A78">類別：一般</text>
+
+<rect x="304" y="184" width="1132" height="56" fill="#FFFFFF"/>
+<rect x="304" y="240" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<text x="324" y="219" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">名稱</text>
+<text x="724" y="219" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">狀態</text>
+<text x="964" y="219" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">更新時間</text>
+<text x="1200" y="219" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">操作</text>
+
+<rect x="304" y="248" width="1132" height="56" fill="#FFFFFF"/>
+<rect x="304" y="304" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="324" cy="276" r="10" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="344" y="282" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">專案 Alpha</text>
+<rect x="704" y="262" width="80" height="28" rx="14" fill="#3B7A78"/>
+<text x="724" y="281" font-family="Inter, Noto Sans TC" font-size="12" fill="#FFFFFF">進行中</text>
+<text x="964" y="282" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">2025-11-12</text>
+<rect x="1180" y="262" width="96" height="28" rx="8" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="1198" y="281" font-family="Inter, Noto Sans TC" font-size="12" fill="#2B6CB0">查看</text>
+
+<rect x="304" y="312" width="1132" height="56" fill="#FFFFFF"/>
+<rect x="304" y="368" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="324" cy="340" r="10" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="344" y="346" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">專案 Beta</text>
+<rect x="704" y="326" width="80" height="28" rx="14" fill="#4B6FA9"/>
+<text x="724" y="345" font-family="Inter, Noto Sans TC" font-size="12" fill="#FFFFFF">已完成</text>
+<text x="964" y="346" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">2025-10-28</text>
+<rect x="1180" y="326" width="96" height="28" rx="8" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="1198" y="345" font-family="Inter, Noto Sans TC" font-size="12" fill="#2B6CB0">查看</text>
+
+<rect x="304" y="376" width="1132" height="56" fill="#FFFFFF"/>
+<rect x="304" y="432" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="324" cy="404" r="10" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="344" y="410" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">專案 Gamma</text>
+<rect x="704" y="390" width="80" height="28" rx="14" fill="#6B6BB2"/>
+<text x="724" y="409" font-family="Inter, Noto Sans TC" font-size="12" fill="#FFFFFF">待審核</text>
+<text x="964" y="410" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">2025-09-30</text>
+<rect x="1180" y="390" width="96" height="28" rx="8" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="1198" y="409" font-family="Inter, Noto Sans TC" font-size="12" fill="#2B6CB0">查看</text>
+
+<rect x="304" y="452" width="160" height="40" rx="8" fill="#2B6CB0"/>
+<text x="324" y="477" font-family="Inter, Noto Sans TC" font-size="14" fill="#FFFFFF">批次操作</text>
+
+</svg>

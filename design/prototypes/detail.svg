@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1440" height="1024" viewBox="0 0 1440 1024" xmlns="http://www.w3.org/2000/svg">
+<rect x="0" y="0" width="1440" height="1024" fill="#F7F7F7"/>
+
+<rect x="0" y="0" width="1440" height="64" fill="#FFFFFF"/>
+<rect x="0" y="64" width="1440" height="4" fill="#000000" opacity="0.06"/>
+
+<rect x="0" y="68" width="280" height="956" fill="#FFFFFF"/>
+<rect x="280" y="68" width="1" height="956" fill="#E5E5E5"/>
+
+<text x="24" y="40" font-family="Inter, Noto Sans TC" font-size="18" fill="#333333">詳情頁</text>
+<rect x="1240" y="16" width="160" height="32" rx="8" fill="#2B6CB0"/>
+<text x="1264" y="37" font-family="Inter, Noto Sans TC" font-size="14" fill="#FFFFFF">主要操作</text>
+
+<text x="304" y="100" font-family="Inter, Noto Sans TC" font-size="24" fill="#333333">專案 Alpha 詳情</text>
+<text x="304" y="132" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">最後更新：2025-11-12 · 建立者：Admin</text>
+
+<rect x="304" y="152" width="240" height="40" rx="20" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="328" y="177" font-family="Inter, Noto Sans TC" font-size="12" fill="#2B6CB0">基本資訊</text>
+<rect x="552" y="152" width="240" height="40" rx="20" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="576" y="177" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">活動紀錄</text>
+<rect x="800" y="152" width="240" height="40" rx="20" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="824" y="177" font-family="Inter, Noto Sans TC" font-size="12" fill="#666666">權限設定</text>
+
+<rect x="304" y="208" width="540" height="220" rx="8" fill="#FFFFFF"/>
+<rect x="304" y="428" width="540" height="4" fill="#000000" opacity="0.05"/>
+<text x="324" y="236" font-family="Inter, Noto Sans TC" font-size="16" fill="#333333">基本資料</text>
+<text x="324" y="268" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">負責人：John Doe</text>
+<text x="324" y="296" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">狀態：進行中</text>
+<text x="324" y="324" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">開始日期：2025-09-01</text>
+<text x="324" y="352" font-family="Inter, Noto Sans TC" font-size="14" fill="#666666">預計完成：2026-01-20</text>
+
+<rect x="868" y="208" width="568" height="220" rx="8" fill="#FFFFFF"/>
+<rect x="868" y="428" width="568" height="4" fill="#000000" opacity="0.05"/>
+<text x="888" y="236" font-family="Inter, Noto Sans TC" font-size="16" fill="#333333">重點指標</text>
+<rect x="888" y="256" width="160" height="80" rx="8" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="908" y="290" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">完成度</text>
+<text x="908" y="318" font-family="Inter, Noto Sans TC" font-size="24" fill="#333333">87%</text>
+<rect x="1060" y="256" width="160" height="80" rx="8" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="1080" y="290" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">問題數</text>
+<text x="1080" y="318" font-family="Inter, Noto Sans TC" font-size="24" fill="#333333">12</text>
+<rect x="1232" y="256" width="160" height="80" rx="8" fill="#FFFFFF" stroke="#E5E5E5"/>
+<text x="1252" y="290" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">風險</text>
+<text x="1252" y="318" font-family="Inter, Noto Sans TC" font-size="24" fill="#333333">低</text>
+
+<text x="304" y="468" font-family="Inter, Noto Sans TC" font-size="18" fill="#333333">近期活動</text>
+<rect x="304" y="492" width="1132" height="48" rx="8" fill="#FFFFFF"/>
+<rect x="304" y="540" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="328" cy="516" r="12" fill="#3B7A78"/>
+<text x="352" y="522" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">提交報告 v2.1</text>
+
+<rect x="304" y="564" width="1132" height="48" rx="8" fill="#FFFFFF"/>
+<rect x="304" y="612" width="1132" height="4" fill="#000000" opacity="0.05"/>
+<circle cx="328" cy="588" r="12" fill="#4B6FA9"/>
+<text x="352" y="594" font-family="Inter, Noto Sans TC" font-size="14" fill="#333333">完成模組測試</text>
+
+<rect x="304" y="636" width="160" height="40" rx="8" fill="#2B6CB0"/>
+<text x="324" y="661" font-family="Inter, Noto Sans TC" font-size="14" fill="#FFFFFF">編輯詳情</text>
+
+<rect x="472" y="636" width="160" height="40" rx="8" fill="#FFFFFF" stroke="#2B6CB0"/>
+<text x="492" y="661" font-family="Inter, Noto Sans TC" font-size="14" fill="#2B6CB0">匯出資料</text>
+
+</svg>
