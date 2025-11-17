@@ -300,7 +300,7 @@ def generate_recommendations(df, transfer_mode):
     rec_df = pd.DataFrame(recommendations)
 
     kpi_metrics = {
-        "總調貨建議數量": len(rec_df),
+        "總調貨建議行數": len(rec_df),
         "總調貨件數": int(rec_df['Transfer Qty'].sum()),
         "涉及產品數量": int(rec_df['Article'].nunique()),
         "涉及OM數量": int(rec_df['OM'].nunique())
@@ -315,7 +315,7 @@ def generate_recommendations(df, transfer_mode):
     stats_by_om = rec_df.groupby('OM').agg(
         總調貨件數=('Transfer Qty', 'sum'),
         調貨行數=('OM', 'count'),
-        涉及產品數量=('Article', 'nunique')
+        涉及Article數量=('Article', 'nunique')
     ).reset_index().round(2)
 
     transfer_type_dist = rec_df.groupby('_sender_type').agg(
@@ -404,32 +404,54 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
             'Transfer Qty', 'Original Stock', 'After Transfer Stock', 
             'Safety Stock', 'MOQ', 'Notes'
         ]
-        
+
         export_rec_df = rec_df.copy()
         for col in column_order:
             if col not in export_rec_df.columns:
                 export_rec_df[col] = ''
-        
+
         export_rec_df = export_rec_df[column_order]
         export_rec_df.to_excel(writer, sheet_name='調貨建議', index=False)
 
         summary_sheet_name = '統計摘要'
-        start_row = 0
+        workbook = writer.book
+        worksheet = workbook.add_worksheet(summary_sheet_name)
+        writer.sheets[summary_sheet_name] = worksheet
 
-        def write_df_with_title(df, title, row):
-            pd.DataFrame([title]).to_excel(writer, sheet_name=summary_sheet_name, startrow=row, index=False, header=False)
-            df.to_excel(writer, sheet_name=summary_sheet_name, startrow=row + 2, index=False)
-            return row + len(df) + 5
+        title_format = workbook.add_format({'bold': True, 'font_size': 14})
+        label_fmt = workbook.add_format({'bold': True, 'align': 'left', 'valign': 'vcenter', 'border': 1, 'bg_color': '#DCE6F1'})
+        value_fmt = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1, 'bg_color': '#E2EFDA'})
+        table_title_fmt = workbook.add_format({'bold': True, 'border': 1, 'bg_color': '#F2F2F2'})
 
-        kpi_df = pd.DataFrame([kpis])
-        start_row = write_df_with_title(kpi_df, "KPI概覽", start_row)
-        
-        start_row = write_df_with_title(stats_article, "按Article統計", start_row)
-        
-        start_row = write_df_with_title(stats_om, "按OM統計", start_row)
-        
-        start_row = write_df_with_title(transfer_dist, "轉出類型分佈", start_row)
-        
-        write_df_with_title(receive_dist, "接收類型分佈", start_row)
+        worksheet.write(0, 0, '調貨建議統計摘要', title_format)
+
+        k_labels = ['總調貨建議行數', '總調貨件數', '涉及產品數量', '涉及OM數量']
+        k_values = [kpis.get('總調貨建議行數', 0), kpis.get('總調貨件數', 0), kpis.get('涉及產品數量', 0), kpis.get('涉及OM數量', 0)]
+        for i, (lbl, val) in enumerate(zip(k_labels, k_values)):
+            worksheet.write(2 + i, 0, lbl, label_fmt)
+            worksheet.write(2 + i, 1, val, value_fmt)
+
+        worksheet.set_column(0, 0, 20)
+        worksheet.set_column(1, 1, 12)
+        worksheet.set_column(5, 9, 18)
+
+        sa_start_row, sa_start_col = 8, 0
+        worksheet.write(sa_start_row, sa_start_col, '按Article統計', table_title_fmt)
+        stats_article.to_excel(writer, sheet_name=summary_sheet_name, startrow=sa_start_row + 2, startcol=sa_start_col, index=False)
+
+        so_start_row, so_start_col = 8, 5
+        worksheet.write(so_start_row, so_start_col, '按OM統計', table_title_fmt)
+        stats_om.to_excel(writer, sheet_name=summary_sheet_name, startrow=so_start_row + 2, startcol=so_start_col, index=False)
+
+        transfer_dist = transfer_dist.rename(columns={'涉及行數': '建議數量'})
+        receive_dist = receive_dist.rename(columns={'涉及行數': '建議數量'})
+
+        td_start_row, td_start_col = 20, 0
+        worksheet.write(td_start_row, td_start_col, '轉出類型分析', table_title_fmt)
+        transfer_dist.to_excel(writer, sheet_name=summary_sheet_name, startrow=td_start_row + 2, startcol=td_start_col, index=False)
+
+        rd_start_row, rd_start_col = 20, 5
+        worksheet.write(rd_start_row, rd_start_col, '接收類型分析', table_title_fmt)
+        receive_dist.to_excel(writer, sheet_name=summary_sheet_name, startrow=rd_start_row + 2, startcol=rd_start_col, index=False)
 
     return output.getvalue()
