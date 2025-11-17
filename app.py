@@ -223,11 +223,17 @@ if uploaded_file is not None:
                     # 4.4. 結果展示區塊
                     st.header("3. 分析結果")
                     
-                    # KPI 指標卡
-                    st.subheader("關鍵指標 (KPIs)")
-                    cols = st.columns(len(kpi_metrics))
-                    for i, (k, v) in enumerate(kpi_metrics.items()):
-                        cols[i].metric(k, v)
+                    # KPI 指標卡（左側縱向排列，文字優化）
+                    st.subheader("關鍵指標")
+                    kpi_left, _kpi_right = st.columns([4, 8])
+                    with kpi_left:
+                        count = 0
+                        for k, v in kpi_metrics.items():
+                            label = "總調貨建議行數" if k == "總調貨建議數量" else k
+                            st.metric(label, v)
+                            count += 1
+                            if count >= 4:
+                                break
                     
                     st.markdown("---")
 
@@ -237,21 +243,23 @@ if uploaded_file is not None:
 
                     st.markdown("---")
 
-                    # 統計圖表
-                    st.subheader("詳細統計分析 (Detailed Statistical Analysis)")
-                    
-                    col1, col2 = st.columns(2)
+                    # 統計摘要（對齊 Excel 摘要布局）
+                    st.subheader("詳細統計摘要")
 
-                    with col1:
-                        st.write("#### 按產品統計 (Statistics by Article)")
+                    row1_left, row1_right = st.columns([6, 6])
+                    with row1_left:
+                        st.write("#### 按Article統計")
                         st.dataframe(stats_by_article)
-                        st.write("#### 轉出類型分佈 (Transfer Type Distribution)")
-                        st.dataframe(transfer_type_dist)
-
-                    with col2:
-                        st.write("#### 按OM統計 (Statistics by OM)")
+                    with row1_right:
+                        st.write("#### 按OM統計")
                         st.dataframe(stats_by_om)
-                        st.write("#### 接收類型分佈 (Receive Type Distribution)")
+
+                    row2_left, row2_right = st.columns([6, 6])
+                    with row2_left:
+                        st.write("#### 轉出類型分析")
+                        st.dataframe(transfer_type_dist)
+                    with row2_right:
+                        st.write("#### 接收類型分析")
                         st.dataframe(receive_type_dist)
                     
                     st.markdown("---")
