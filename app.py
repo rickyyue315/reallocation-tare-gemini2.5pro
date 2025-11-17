@@ -223,17 +223,13 @@ if uploaded_file is not None:
                     # 4.4. 結果展示區塊
                     st.header("3. 分析結果")
                     
-                    # KPI 指標卡（左側縱向排列，文字優化）
                     st.subheader("關鍵指標")
-                    kpi_left, _kpi_right = st.columns([4, 8])
-                    with kpi_left:
-                        count = 0
-                        for k, v in kpi_metrics.items():
-                            label = "總調貨建議行數" if k == "總調貨建議數量" else k
-                            st.metric(label, v)
-                            count += 1
-                            if count >= 4:
-                                break
+                    r1c1, r1c2 = st.columns(2)
+                    r1c1.metric("總調貨建議行數", kpi_metrics.get("總調貨建議行數", 0))
+                    r1c2.metric("總調貨件數", kpi_metrics.get("總調貨件數", 0))
+                    r2c1, r2c2 = st.columns(2)
+                    r2c1.metric("涉及產品數量", kpi_metrics.get("涉及產品數量", 0))
+                    r2c2.metric("涉及OM數量", kpi_metrics.get("涉及OM數量", 0))
                     
                     st.markdown("---")
 
