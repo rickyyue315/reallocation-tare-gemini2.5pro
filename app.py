@@ -98,6 +98,37 @@ def apply_ui_style():
         unsafe_allow_html=True,
     )
 
+def render_summary_panel(kpi_metrics):
+    items = []
+    mapping = {
+        "總調貨建議數量": "總調貨建議行數",
+        "總調貨件數": "總調貨件數",
+        "涉及產品數量": "涉及產品數量",
+        "涉及OM數量": "涉及OM數量",
+    }
+    for key, label in mapping.items():
+        if key in kpi_metrics:
+            items.append((label, kpi_metrics[key]))
+    if not items:
+        return
+    rows = []
+    for i, (label, value) in enumerate(items):
+        rows.append(f"""
+        <div class='summary-item'>
+          <div class='label'>{label}</div>
+          <div class='value'>{value}</div>
+        </div>
+        """)
+    html = """
+    <style>
+    .summary-item { display:flex; align-items:center; border:1px solid var(--color-border); border-radius:8px; overflow:hidden; box-shadow: var(--elev-2); margin-bottom:8px; }
+    .summary-item .label { flex:1; background:#E9F2FF; color:var(--color-text); padding:8px 12px; }
+    .summary-item .value { width:120px; background:#DFF1E0; color:var(--color-text); font-weight:600; text-align:center; padding:8px 12px; }
+    </style>
+    <div class='summary-panel'>%s</div>
+    """ % "".join(rows)
+    st.markdown(html, unsafe_allow_html=True)
+
 apply_ui_style()
 
 # 2. 側邊欄設計
@@ -223,17 +254,10 @@ if uploaded_file is not None:
                     # 4.4. 結果展示區塊
                     st.header("3. 分析結果")
                     
-                    # KPI 指標卡（左側縱向排列，文字優化）
-                    st.subheader("關鍵指標")
+                    st.subheader("統計摘要")
                     kpi_left, _kpi_right = st.columns([4, 8])
                     with kpi_left:
-                        count = 0
-                        for k, v in kpi_metrics.items():
-                            label = "總調貨建議行數" if k == "總調貨建議數量" else k
-                            st.metric(label, v)
-                            count += 1
-                            if count >= 4:
-                                break
+                        render_summary_panel(kpi_metrics)
                     
                     st.markdown("---")
 
