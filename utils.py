@@ -211,20 +211,20 @@ def identify_sources(df, transfer_mode):
         if rp == 'RF' and stock > 0:
             if transfer_mode.startswith('A'):
                 base = max(0, total - safety)
-                upper = max(int(total * 0.2), 2)
+                upper = max(int(total * 0.4), 2)
                 qty = min(base, upper, stock)
                 if qty > 0 and (stock - qty + int(r['Pending Received'])) >= safety:
                     out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(qty), 'priority': 2, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': 'RF過剩轉出', 'row': r})
             elif transfer_mode.startswith('B'):
                 base = max(0, total - safety)
-                upper = max(int(total * 0.5), 2)
+                upper = max(int(total * 0.8), 2)
                 qty = min(max(0, upper), stock)
                 if qty > 0:
                     remaining_total = stock - qty + int(r['Pending Received'])
                     stype = 'RF過剩轉出' if remaining_total >= safety else 'RF加強轉出'
                     out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(qty), 'priority': 2, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': stype, 'row': r})
             else:
-                upper = max(1, min(int(total * 0.3), 3))
+                upper = max(1, int(total * 0.5))
                 qty = min(upper, stock)
                 if qty > 0:
                     remaining_total = stock - qty + int(r['Pending Received'])
