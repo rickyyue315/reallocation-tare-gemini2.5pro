@@ -283,7 +283,7 @@ def generate_recommendations(df, transfer_mode):
             ('RF加強轉出','C模式重點補0'): 7
         }
         return order.get((s['source_type'], d['dest_type']), 99)
-    sources.sort(key=lambda x: (x['priority'], x['effective_sold_qty'], x['transferable_qty']), reverse=True)
+    sources.sort(key=lambda x: (x['priority'], -x['effective_sold_qty'], -x['transferable_qty']))
     destinations.sort(key=lambda x: (x['priority'], x['effective_sold_qty'], -x['current_stock']))
     locked = {}
     for s in sources:
