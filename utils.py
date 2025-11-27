@@ -149,13 +149,6 @@ def _calculate_candidates(df, transfer_mode):
                             'type': 'C模式重點補0', 'priority': 0, 'data': row,
                             'needed_qty': needed, 'effective_sales': effective_sales
                         })
-                # C模式下：ND 零庫存也給予起始補貨需求
-                if row['RP Type'] == 'ND' and (stock + pending) <= 1:
-                    needed = int(max(row['MOQ'], 3))
-                    receivers.append({
-                        'type': 'ND起始補貨', 'priority': 1, 'data': row,
-                        'needed_qty': needed, 'effective_sales': effective_sales
-                    })
             else:
                 if row['RP Type'] == 'RF':
                     if (stock + pending) < safety_stock:
@@ -179,13 +172,6 @@ def _calculate_candidates(df, transfer_mode):
                             'type': '起始補貨需求', 'priority': 1, 'data': row,
                             'needed_qty': needed, 'effective_sales': effective_sales
                         })
-                # A/B模式下：ND 零庫存補起始需求
-                if row['RP Type'] == 'ND' and (stock + pending) == 0:
-                    needed = int(max(row['MOQ'], 3))
-                    receivers.append({
-                        'type': 'ND起始補貨', 'priority': 1, 'data': row,
-                        'needed_qty': needed, 'effective_sales': effective_sales
-                    })
                     
     return senders, receivers
 
@@ -213,121 +199,159 @@ def estimate_transfer_potential(df):
         "total_needed_C": int(total_needed_C)
     }
 
+def identify_sources(df, transfer_mode):
+    out = []
+    for _, r in df.iterrows():
+        total = int(r['SaSa Net Stock']) + int(r['Pending Received'])
+        stock = int(r['SaSa Net Stock'])
+        safety = int(r['Safety Stock'])
+        rp = str(r['RP Type'])
+        if rp == 'ND' and stock > 0:
+            out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(stock), 'priority': 1, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': 'ND轉出', 'row': r})
+        if rp == 'RF' and stock > 0:
+            if transfer_mode.startswith('A'):
+                base = max(0, total - safety)
+                upper = max(int(total * 0.2), 2)
+                qty = min(base, upper, stock)
+                if qty > 0 and (stock - qty + int(r['Pending Received'])) >= safety:
+                    out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(qty), 'priority': 2, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': 'RF過剩轉出', 'row': r})
+            elif transfer_mode.startswith('B'):
+                base = max(0, total - safety)
+                upper = max(int(total * 0.5), 2)
+                qty = min(max(0, upper), stock)
+                if qty > 0:
+                    remaining_total = stock - qty + int(r['Pending Received'])
+                    stype = 'RF過剩轉出' if remaining_total >= safety else 'RF加強轉出'
+                    out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(qty), 'priority': 2, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': stype, 'row': r})
+            else:
+                upper = max(1, min(int(total * 0.3), 3))
+                qty = min(upper, stock)
+                if qty > 0:
+                    remaining_total = stock - qty + int(r['Pending Received'])
+                    stype = 'RF過剩轉出' if remaining_total >= safety else 'RF加強轉出'
+                    out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': rp, 'transferable_qty': int(qty), 'priority': 2, 'original_stock': stock, 'effective_sold_qty': int(r['Effective Sold Qty']), 'source_type': stype, 'row': r})
+    return out
+
+def identify_destinations(df, transfer_mode):
+    out = []
+    max_sales = df.groupby('Article')['Effective Sold Qty'].max().to_dict()
+    for _, r in df.iterrows():
+        if str(r['RP Type']) != 'RF':
+            continue
+        stock = int(r['SaSa Net Stock'])
+        pending = int(r['Pending Received'])
+        total = stock + pending
+        safety = int(r['Safety Stock'])
+        eff = int(r['Effective Sold Qty'])
+        need = 0
+        dtype = None
+        tgt = 0
+        recvd = 0
+        if transfer_mode.startswith('C') and total <= 1:
+            tgt = max(int(safety * 0.5), 3)
+            need = max(0, tgt - total)
+            if need > 0:
+                dtype = 'C模式重點補0'
+        else:
+            if total < safety:
+                need = safety - total
+                if stock == 0 and eff > 0:
+                    dtype = '緊急缺貨補貨'
+                else:
+                    if eff >= max_sales.get(r['Article'], eff):
+                        dtype = '潛在缺貨補貨'
+        if dtype and need > 0:
+            pri = 1 if dtype == '緊急缺貨補貨' else 2
+            out.append({'site': r['Site'], 'om': r['OM'], 'rp_type': 'RF', 'needed_qty': int(need), 'priority': pri, 'current_stock': stock, 'pending_received': pending, 'safety_stock': safety, 'moq': int(r['MOQ']), 'effective_sold_qty': eff, 'dest_type': dtype, 'target_qty': tgt, 'received_qty': recvd, 'row': r})
+    return out
+
 def generate_recommendations(df, transfer_mode):
-    """
-    根據所選模式，通過匹配轉出和接收候選來生成調貨建議。
-    """
     recommendations = []
     df['Effective Sold Qty'] = np.where(df['Last Month Sold Qty'] > 0, df['Last Month Sold Qty'], df['MTD Sold Qty'])
-    
-    senders, receivers = _calculate_candidates(df, transfer_mode)
-    
-    # 根據新的業務邏輯調整排序
-    # 1. ND 類型 (priority 1) 優先處理
-    # 2. RF 類型 (priority 2) 根據以下規則排序:
-    #    - 優先處理可轉出數量 >= 2 的店舖
-    #    - 其次，按當前庫存量從高到低排序
-    nd_senders = [s for s in senders if s['priority'] == 1]
-    rf_senders = [s for s in senders if s['priority'] == 2]
-    
-    # 複合排序：(可轉出>=2, 當前庫存) -> 降序
-    rf_senders.sort(key=lambda x: (x['available_qty'] >= 2, x['current_stock']), reverse=True)
-    
-    senders = nd_senders + rf_senders
-    # 接收方排序：優先級 -> 銷售量 -> 需求量
-    receivers.sort(key=lambda x: (x['priority'], x['effective_sales'], x['needed_qty']), reverse=True)
-
-    locked_sites_by_article = {}
-
-    for sender in senders:
-        # 在C模式下，為每個發送者重置接收者列表
-        if transfer_mode.startswith('C'):
-            _, receivers_for_sender = _calculate_candidates(df[df['Article'] == sender['data']['Article']], transfer_mode)
-        else:
-            receivers_for_sender = receivers
-
-        for receiver in receivers_for_sender:
-            article_key = sender['data']['Article']
-            if article_key not in locked_sites_by_article:
-                locked_sites_by_article[article_key] = set()
-            if sender['available_qty'] > 0 and receiver['needed_qty'] > 0 and \
-               sender['data']['Article'] == receiver['data']['Article'] and \
-               sender['data']['OM'] == receiver['data']['OM'] and \
-               sender['data']['Site'] != receiver['data']['Site'] and \
-               sender['data']['Site'] not in locked_sites_by_article[article_key] and \
-               receiver['data']['Site'] not in locked_sites_by_article[article_key]:
-                
-                transfer_qty = min(sender['available_qty'], receiver['needed_qty'])
-                
-                # 新的排序邏輯已取代舊的單件轉出規則
-                final_transfer_qty = min(transfer_qty, sender['current_stock'])
-                
-                if final_transfer_qty > 0:
-                    sender_type = sender['type']
-                    # B模式下，根據轉出後庫存是否低於安全庫存，重新定義轉出類型
-                    if transfer_mode.startswith('B') and sender['type'] == 'RF加強轉出':
-                        remaining_stock = sender['current_stock'] - final_transfer_qty
-                        safety_stock = sender['data']['Safety Stock']
-                        if remaining_stock >= safety_stock:
-                            sender_type = 'RF過剩轉出'
-                        # 如果不滿足，sender_type 保持為 'RF加強轉出'
-
-                    recommendations.append({
-                        'Article': sender['data']['Article'],
-                        'Product Desc': sender['data']['Article Description'],
-                        'OM': sender['data']['OM'],
-                        'Transfer Site': sender['data']['Site'],
-                        'Receive Site': receiver['data']['Site'],
-                        'Transfer Qty': final_transfer_qty,
-                        'Original Stock': sender['current_stock'],
-                        'After Transfer Stock': sender['current_stock'] - final_transfer_qty,
-                        'Safety Stock': sender['data']['Safety Stock'],
-                        'MOQ': sender['data']['MOQ'],
-                        'Notes': f"{sender_type} -> {receiver['type']}",
-                        '_sender_type': sender_type,
-                        '_receiver_type': receiver['type']
-                    })
-                    sender['available_qty'] -= final_transfer_qty
-                    receiver['needed_qty'] -= final_transfer_qty
-                    sender['current_stock'] -= final_transfer_qty
-                    
-                    locked_sites_by_article[article_key].add(sender['data']['Site'])
-                    locked_sites_by_article[article_key].add(receiver['data']['Site'])
-
+    sources = identify_sources(df, transfer_mode)
+    destinations = identify_destinations(df, transfer_mode)
+    destinations = [d for d in destinations if d['rp_type'] == 'RF']
+    def pair_rank(s, d):
+        order = {
+            ('ND轉出','緊急缺貨補貨'): 1,
+            ('ND轉出','潛在缺貨補貨'): 2,
+            ('RF過剩轉出','緊急缺貨補貨'): 3,
+            ('RF過剩轉出','潛在缺貨補貨'): 4,
+            ('RF加強轉出','緊急缺貨補貨'): 5,
+            ('RF加強轉出','潛在缺貨補貨'): 6,
+            ('RF過剩轉出','C模式重點補0'): 7,
+            ('RF加強轉出','C模式重點補0'): 7
+        }
+        return order.get((s['source_type'], d['dest_type']), 99)
+    sources.sort(key=lambda x: (x['priority'], x['effective_sold_qty'], x['transferable_qty']), reverse=True)
+    destinations.sort(key=lambda x: (x['priority'], x['effective_sold_qty'], -x['current_stock']))
+    locked = {}
+    for s in sources:
+        art = s['row']['Article']
+        if art not in locked:
+            locked[art] = set()
+        cand = [d for d in destinations if d['row']['Article']==art and d['om']==s['om'] and d['site']!=s['site']]
+        for d in sorted(cand, key=lambda x: pair_rank(s,x)):
+            if s['transferable_qty'] <= 0 or d['needed_qty'] <= 0:
+                continue
+            if s['site'] in locked[art] or d['site'] in locked[art]:
+                continue
+            qty = min(int(s['transferable_qty']), int(d['needed_qty']))
+            if qty <= 0:
+                continue
+            s['transferable_qty'] -= qty
+            d['needed_qty'] -= qty
+            d['received_qty'] += qty
+            locked[art].add(s['site'])
+            locked[art].add(d['site'])
+            sender_type = s['source_type']
+            receiver_type = d['dest_type']
+            rec = {
+                'Article': s['row']['Article'],
+                'Product Desc': s['row']['Article Description'],
+                'Transfer OM': s['om'],
+                'Transfer Site': s['site'],
+                'Receive OM': d['om'],
+                'Receive Site': d['site'],
+                'Transfer Qty': qty,
+                'Original Stock': s['original_stock'],
+                'After Transfer Stock': s['original_stock'] - qty,
+                'Safety Stock': int(s['row']['Safety Stock']),
+                'MOQ': int(s['row']['MOQ']),
+                'Source Type': sender_type,
+                'Destination Type': receiver_type,
+                'Cumulative Received Qty': d['received_qty'],
+                'Target Qty': d['target_qty'],
+                'Remark': f"{sender_type} -> {receiver_type}",
+                'Notes': '',
+                '_sender_type': sender_type,
+                '_receiver_type': receiver_type,
+                'OM': s['om']
+            }
+            recommendations.append(rec)
     if not recommendations:
         return pd.DataFrame(), {}, pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-
     rec_df = pd.DataFrame(recommendations)
-
+    rec_df = rec_df[(rec_df['Transfer Qty'] > 0) & (rec_df['After Transfer Stock'] >= 0)]
+    rec_df = rec_df[rec_df['Transfer Site'] != rec_df['Receive Site']]
     kpi_metrics = {
         "總調貨建議行數": len(rec_df),
         "總調貨件數": int(rec_df['Transfer Qty'].sum()),
         "涉及產品數量": int(rec_df['Article'].nunique()),
         "涉及OM數量": int(rec_df['OM'].nunique())
     }
-
     stats_by_article = rec_df.groupby('Article').agg(
-        總調貨件數=('Transfer Qty', 'sum'),
-        調貨行數=('Article', 'count'),
-        涉及OM數量=('OM', 'nunique')
+        總調貨件數=('Transfer Qty','sum'),
+        調貨行數=('Article','count'),
+        涉及OM數量=('OM','nunique')
     ).reset_index().round(2)
-
     stats_by_om = rec_df.groupby('OM').agg(
-        總調貨件數=('Transfer Qty', 'sum'),
-        調貨行數=('OM', 'count'),
-        涉及Article數量=('Article', 'nunique')
+        總調貨件數=('Transfer Qty','sum'),
+        調貨行數=('OM','count'),
+        涉及Article數量=('Article','nunique')
     ).reset_index().round(2)
-
-    transfer_type_dist = rec_df.groupby('_sender_type').agg(
-        總件數=('Transfer Qty', 'sum'),
-        涉及行數=('_sender_type', 'count')
-    ).reset_index().round(2)
-
-    receive_type_dist = rec_df.groupby('_receiver_type').agg(
-        總件數=('Transfer Qty', 'sum'),
-        涉及行數=('_receiver_type', 'count')
-    ).reset_index().round(2)
-    
+    transfer_type_dist = rec_df.groupby('_sender_type').agg(總件數=('Transfer Qty','sum'), 建議數量=('_sender_type','count')).reset_index().round(2)
+    receive_type_dist = rec_df.groupby('_receiver_type').agg(總件數=('Transfer Qty','sum'), 建議數量=('_receiver_type','count')).reset_index().round(2)
     return rec_df, kpi_metrics, stats_by_article, stats_by_om, transfer_type_dist, receive_type_dist
 
 def create_om_transfer_chart(recommendations_df, transfer_mode):
@@ -400,9 +424,8 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         column_order = [
-            'Article', 'Product Desc', 'OM', 'Transfer Site', 'Receive Site', 
-            'Transfer Qty', 'Original Stock', 'After Transfer Stock', 
-            'Safety Stock', 'MOQ', 'Notes'
+            'Article', 'Product Desc', 'Transfer OM', 'Transfer Site', 'Receive OM', 'Receive Site',
+            'Transfer Qty', 'Original Stock', 'After Transfer Stock', 'Safety Stock', 'MOQ', 'Remark', 'Notes'
         ]
 
         export_rec_df = rec_df.copy()
@@ -412,6 +435,20 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
 
         export_rec_df = export_rec_df[column_order]
         export_rec_df.to_excel(writer, sheet_name='調貨建議', index=False)
+        ws = writer.sheets['調貨建議']
+        ws.set_column(0, 0, 15)
+        ws.set_column(1, 1, 30)
+        ws.set_column(2, 2, 15)
+        ws.set_column(3, 3, 15)
+        ws.set_column(4, 4, 15)
+        ws.set_column(5, 5, 15)
+        ws.set_column(6, 6, 12)
+        ws.set_column(7, 7, 15)
+        ws.set_column(8, 8, 18)
+        ws.set_column(9, 9, 12)
+        ws.set_column(10, 10, 8)
+        ws.set_column(11, 11, 35)
+        ws.set_column(12, 12, 60)
 
         summary_sheet_name = '統計摘要'
         workbook = writer.book
