@@ -306,6 +306,11 @@ def generate_recommendations(df, transfer_mode):
             locked[art].add(d['site'])
             sender_type = s['source_type']
             receiver_type = d['dest_type']
+            cap_pct = 0.4 if transfer_mode.startswith('A') else (0.8 if transfer_mode.startswith('B') else 0.5)
+            src_total = int(s['row']['SaSa Net Stock']) + int(s['row']['Pending Received'])
+            dst_total = int(d['current_stock']) + int(d['pending_received'])
+            dst_need = int(d['safety_stock']) - dst_total if d['dest_type'] in ('緊急缺貨補貨','潛在缺貨補貨') else max(0, d['target_qty'] - dst_total)
+            notes = f"Mode={transfer_mode.split(':')[0]} | Source[{sender_type}, rp={s['rp_type']}, total={src_total}, safety={int(s['row']['Safety Stock'])}, cap={int(cap_pct*100)}%] -> Dest[{receiver_type}, total={dst_total}, safety={int(d['safety_stock'])}, need={dst_need}] | qty={qty}"
             rec = {
                 'Article': s['row']['Article'],
                 'Product Desc': s['row']['Article Description'],
@@ -323,7 +328,7 @@ def generate_recommendations(df, transfer_mode):
                 'Cumulative Received Qty': d['received_qty'],
                 'Target Qty': d['target_qty'],
                 'Remark': f"{sender_type} -> {receiver_type}",
-                'Notes': '',
+                'Notes': notes,
                 '_sender_type': sender_type,
                 '_receiver_type': receiver_type,
                 'OM': s['om']
