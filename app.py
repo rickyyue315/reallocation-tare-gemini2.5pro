@@ -265,6 +265,25 @@ if uploaded_file is not None:
                     om_chart_fig = create_om_transfer_chart(recommendations_df, transfer_mode)
                     st.pyplot(om_chart_fig)
 
+                    with st.expander("資料檢核：ND接收剔除"):
+                        removed = st.session_state.get('diag_removed_nd')
+                        raw_df = st.session_state.get('diag_raw_rec_df')
+                        if removed is not None and not removed.empty:
+                            st.warning(f"本次剔除 ND 接收筆數：{len(removed)}")
+                            cols = ['Article','OM','Transfer Site','Receive Site','_receiver_type','_receiver_rp_type','Transfer Qty']
+                            show_cols = [c for c in cols if c in removed.columns]
+                            st.dataframe(removed[show_cols])
+                        else:
+                            st.success("本次未剔除任何 ND 接收筆數。")
+                        remain_nd = recommendations_df[(recommendations_df.get('_receiver_rp_type','') == 'ND') | (recommendations_df.get('_receiver_type','') == 'ND起始補貨')]
+                        if not remain_nd.empty:
+                            st.error("警告：仍存在 ND 接收殘留，以下為清單：")
+                            cols2 = ['Article','OM','Transfer Site','Receive Site','_receiver_type','_receiver_rp_type','Transfer Qty']
+                            show_cols2 = [c for c in cols2 if c in remain_nd.columns]
+                            st.dataframe(remain_nd[show_cols2])
+                        else:
+                            st.info("驗證通過：結果中不包含 ND 接收。")
+
                     st.success("Analysis complete! You can now download the recommendations.")
 
                     excel_data = generate_excel_export(
