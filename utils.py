@@ -323,6 +323,10 @@ def generate_recommendations(df, transfer_mode):
                 'After Transfer Stock': s['original_stock'] - qty,
                 'Safety Stock': int(s['row']['Safety Stock']),
                 'MOQ': int(s['row']['MOQ']),
+                'Source Last Month Sold Qty': int(s['row']['Last Month Sold Qty']),
+                'Source MTD Sold Qty': int(s['row']['MTD Sold Qty']),
+                'Receive Last Month Sold Qty': int(d['row']['Last Month Sold Qty']),
+                'Receive MTD Sold Qty': int(d['row']['MTD Sold Qty']),
                 'Source Type': sender_type,
                 'Destination Type': receiver_type,
                 'Cumulative Received Qty': d['received_qty'],
@@ -430,7 +434,10 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         column_order = [
             'Article', 'Product Desc', 'Transfer OM', 'Transfer Site', 'Receive OM', 'Receive Site',
-            'Transfer Qty', 'Original Stock', 'After Transfer Stock', 'Safety Stock', 'MOQ', 'Remark', 'Notes'
+            'Transfer Qty', 'Original Stock', 'After Transfer Stock', 'Safety Stock', 'MOQ',
+            'Source Last Month Sold Qty', 'Source MTD Sold Qty',
+            'Receive Last Month Sold Qty', 'Receive MTD Sold Qty',
+            'Remark', 'Notes'
         ]
 
         export_rec_df = rec_df.copy()
@@ -452,8 +459,12 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
         ws.set_column(8, 8, 18)
         ws.set_column(9, 9, 12)
         ws.set_column(10, 10, 8)
-        ws.set_column(11, 11, 35)
-        ws.set_column(12, 12, 60)
+        ws.set_column(11, 11, 14)
+        ws.set_column(12, 12, 14)
+        ws.set_column(13, 13, 14)
+        ws.set_column(14, 14, 14)
+        ws.set_column(15, 15, 35)
+        ws.set_column(16, 16, 60)
 
         summary_sheet_name = '統計摘要'
         workbook = writer.book
