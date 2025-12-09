@@ -320,6 +320,7 @@ def generate_recommendations(df, transfer_mode):
                 'Receive Site': d['site'],
                 'Transfer Qty': qty,
                 'Original Stock': s['original_stock'],
+                'Receive Original Stock': int(d['current_stock']),
                 'After Transfer Stock': s['original_stock'] - qty,
                 'Safety Stock': int(s['row']['Safety Stock']),
                 'MOQ': int(s['row']['MOQ']),
@@ -434,7 +435,7 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         column_order = [
             'Article', 'Product Desc', 'Transfer OM', 'Transfer Site', 'Receive OM', 'Receive Site',
-            'Transfer Qty', 'Original Stock', 'After Transfer Stock', 'Safety Stock', 'MOQ',
+            'Transfer Qty', 'Original Stock', 'Receive Original Stock', 'After Transfer Stock', 'Safety Stock', 'MOQ',
             'Source Last Month Sold Qty', 'Source MTD Sold Qty',
             'Receive Last Month Sold Qty', 'Receive MTD Sold Qty',
             'Remark', 'Notes'
@@ -459,12 +460,13 @@ def generate_excel_export(rec_df, kpis, stats_article, stats_om, transfer_dist, 
         ws.set_column(8, 8, 18)
         ws.set_column(9, 9, 12)
         ws.set_column(10, 10, 8)
-        ws.set_column(11, 11, 14)
+        ws.set_column(11, 11, 12)
         ws.set_column(12, 12, 14)
         ws.set_column(13, 13, 14)
         ws.set_column(14, 14, 14)
-        ws.set_column(15, 15, 35)
-        ws.set_column(16, 16, 60)
+        ws.set_column(15, 15, 14)
+        ws.set_column(16, 16, 35)
+        ws.set_column(17, 17, 60)
 
         summary_sheet_name = '統計摘要'
         workbook = writer.book
